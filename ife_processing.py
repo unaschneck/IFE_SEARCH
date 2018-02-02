@@ -27,6 +27,20 @@ def outputCSV(filename, data_list):
 			writer.writerow({'year': data[0], 'month': data[1], 'day': data[2], 'hour': data[3], 'second': data[4], 'millisecond': data[5], 'b1': data[6], 'b2': data[7], 'b3': data[8], 'btotal': data[9]})
 	print("OUTPUT FILE SAVED AS '{0}'".format(output_filename))
 
+########### IFE IDENTIFICATION CRITERIA
+
+# FIRST CRITERIA: MAGNETIC FIELD ENHANCEMENT IS LARGER THAN 25% OF AMBIENT
+def function_name for criteria():
+	pass
+
+# SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
+def function_name for criteria():
+	pass
+
+# THIRD CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
+def function_name for criteria():
+	pass
+
 if __name__ == '__main__':
 	import argparse
 	parser = argparse.ArgumentParser(description="flag format given as: -F <filename>")
