@@ -30,15 +30,30 @@ def outputCSV(filename, data_list):
 ########### IFE IDENTIFICATION CRITERIA
 
 # FIRST CRITERIA: MAGNETIC FIELD ENHANCEMENT IS LARGER THAN 25% OF AMBIENT
-def magEnhance for criteria():
+def magEnhance():
+	# define an ambient magnetic field magnitude over a four hour interval and compare the peak of |B| (where the derivative is zero)
+	# to the ambient. 
+	# Returns true if peak value is larger than (0.25)*(|B|avg)
 	pass
 
 # SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
-def eventDur for criteria():
+def eventDur):
+	# an event duration is defined as the time before and after a peak for |B| to return to the ambient (averaged over four hours)
+	# field magnitude. 
+	# Returns true if this duration is longer than 10 minutes.
 	pass
 
-# THIRD CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
-def noRot for criteria():
+# THIRD CRITERIA: CURENT SHEET IS PRESENT NEAR PEAK |B|
+def jSheet():
+	# a current sheet is present for a sharp rotation of at least one of the components. 
+	# Return true if (i) at least one component of B changes from positive -> negative (or vv) within the duration of the event
+	# (ii) and the change happens within a minute
+	pass
+
+# FOURTH CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
+def noRot():
+	# a rotation of the magnetic field component is defined as when the component changes from positive -> negative (or vv)
+	# Returns true if at least one component does not change sign within the event
 	pass
 
 if __name__ == '__main__':
