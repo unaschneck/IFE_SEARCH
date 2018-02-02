@@ -37,7 +37,7 @@ def magEnhance():
 	pass
 
 # SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
-def eventDur):
+def eventDur():
 	# an event duration is defined as the time before and after a peak for |B| to return to the ambient (averaged over four hours)
 	# field magnitude. 
 	# Returns true if this duration is longer than 10 minutes.
