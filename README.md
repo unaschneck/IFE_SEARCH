@@ -1,3 +1,3 @@
 # IFE_SEARCH
 
-Looking for IFEs in STEREO and ACE
+Looking for IFEs in STEREO, WIND, and ACE
