@@ -1,9 +1,9 @@
 # IFE_SEARCH
 
-Looking for IFEs in STEREO, WIND, and ACE
+Looking for IFEs (Russell et al. 1985a) in STEREO, WIND, and ACE
 
 
-__Selection Criteria (Lai et al. 2017):__
+__Selection Criteria (Lai et al. 2017 and):__
 1. Total Magnetic field enhancement > 25% (relative to ambient |B|)
 2. Duration > 10 minutes
 3. Current sheet is present at or around the peak of |B|
