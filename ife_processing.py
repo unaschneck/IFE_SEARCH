@@ -30,15 +30,15 @@ def outputCSV(filename, data_list):
 ########### IFE IDENTIFICATION CRITERIA
 
 # FIRST CRITERIA: MAGNETIC FIELD ENHANCEMENT IS LARGER THAN 25% OF AMBIENT
-def function_name for criteria():
+def magEnhance for criteria():
 	pass
 
 # SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
-def function_name for criteria():
+def eventDur for criteria():
 	pass
 
 # THIRD CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
-def function_name for criteria():
+def noRot for criteria():
 	pass
 
 if __name__ == '__main__':
