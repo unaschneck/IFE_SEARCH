@@ -13,4 +13,4 @@ __Selection Criteria (Lai et al. 2017):__
 1. Download or clone repo
 Required packages: 
 2. Running code:
-```python ife_pro ife_processing.py -F <filename>.txt```
+```python ife_processing.py -F <filename>.txt```
