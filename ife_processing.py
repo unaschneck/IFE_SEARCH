@@ -20,11 +20,11 @@ def outputCSV(filename, data_list):
 	output_filename = "{0}_data.csv".format(given_file.upper())
 	import csv
 	with open(output_filename, 'w+') as txt_data:
-		fieldnames = ['year', 'month', 'day', 'hour', 'minute', 'second', 'millisecond', 'b1', 'b2', 'b3', 'btotal']
+		fieldnames = ['year', 'month', 'day', 'hour', 'minute', 'second', 'millisecond', 'btotal', 'bx', 'by', 'bz']
 		writer = csv.DictWriter(txt_data, fieldnames=fieldnames)
 		writer.writeheader() 
 		for data in data_list:
-			writer.writerow({'year': data[0], 'month': data[1], 'day': data[2], 'hour': data[3], 'second': data[4], 'millisecond': data[5], 'b1': data[6], 'b2': data[7], 'b3': data[8], 'btotal': data[9]})
+			writer.writerow({'year': data[0], 'month': data[1], 'day': data[2], 'hour': data[3], 'second': data[4], 'millisecond': data[5], 'btotal': data[6], 'bx': data[7], 'by': data[8], 'bz': data[9]})
 	print("OUTPUT FILE SAVED AS '{0}'".format(output_filename))
 
 ########### IFE IDENTIFICATION CRITERIA
