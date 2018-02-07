@@ -18,4 +18,4 @@ Required packages:
 ```python ife_processing.py -F <filename>.txt```
 
 # Current Output
-![testing](https://user-images.githubusercontent.com/22159116/35791050-b48c32d2-0a02-11e8-90f1-576f94e87de1.png)
+![example_output](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/JUNE_TEST.png)
