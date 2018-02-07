@@ -77,7 +77,7 @@ def magEnhance(datetime_list, b_total_list):
 	trimmed_mean = stats.trim_mean(b_total_list, percent_trim)
 	plt.plot(datetime_convert, [trimmed_mean]*len(b_total_list), '--', color='red') # print with mean
 
-	## Red line for regions above the cutoff 25%
+	################## Red line for regions above the cutoff 25%
 	great_25 = []
 	cutoff_percent = abs(trimmed_mean * .25)
 	cutoff = trimmed_mean + cutoff_percent
@@ -94,7 +94,7 @@ def magEnhance(datetime_list, b_total_list):
 	plt.scatter(datetime_convert, great_25, color='blue')
 	plt.plot(datetime_convert, great_25, color='blue') # overlay graph with regions that are above the mean
 
-	## Point for the peak among the red lines for cutoff
+	################## Point for the peak among the red lines for cutoff
 	# find the max for each group of values that are above red
 	above_cutoff_groupings = [great_25[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(great_25))]
 	import operator
@@ -105,7 +105,7 @@ def magEnhance(datetime_list, b_total_list):
 		index_list.append(index)
 		max_print_list.append(max_value)
 
-	# find the single max value for cutoff sections
+	################## find the single max value for cutoff sections
 	max_point = []
 	for max_pt in great_25:
 		if max_pt not in max_print_list:
@@ -116,8 +116,19 @@ def magEnhance(datetime_list, b_total_list):
 	if np.count_nonzero(~np.isnan(max_point)) != len(max_print_list):
 		print("WARNING: duplicates found, {0}!={1}".format(np.count_nonzero(~np.isnan(max_point)), len(max_print_list)))
 	plt.scatter(datetime_convert, max_point, color='red')
-	plt.scatter(datetime_convert, max_point, color='red')
+	# Make adjacent lines to peak red
+	red_adjacent = []
+	red_adjacent = list(max_point)
+	for i in range(len(red_adjacent)):
+		if not np.isnan(max_point[i]):
+			if (i-1) in range(0, len(b_total_list)): # add value if it is within the range of the given list (doesn't go out of index)
+				red_adjacent[i-1] = b_total_list[i-1]
+			if (i+1) in range(0, len(b_total_list)): # add value if it is within the range of the given list (doesn't go out of index)
+				red_adjacent[i+1] = b_total_list[i+1]
+	# creates list with max point (peak) and the left/right adjacent values as red
+	plt.plot(datetime_convert, red_adjacent, color='red')
 
+	################## Plot axis titles and format font size
 	plt.title('Events: {0}'.format(os.path.basename(os.path.splitext(filename)[0])))
 	plt.ylabel('|B| [nT]')
 	plt.xlabel('Datetime')
@@ -195,6 +206,6 @@ if __name__ == '__main__':
 	#print(ife_processing)
 
 	peaks_list = magEnhance(datetime_lst, b_total)
-	print(peaks_list)
+	#print(peaks_list)
 	#outputCSV(filename, ife_processing)
 
