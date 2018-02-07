@@ -63,29 +63,36 @@ def magEnhance(datetime_list, b_total_list):
 	to the ambient. 
 	Returns true if peak value is larger than (0.25)*(|B|avg)
 	'''
+	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_lst] # convert datetime to format to use on x-axis
+	(fig, ax) = plt.subplots(1, 1)
+
+	import matplotlib.dates as mdates
+	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
+	ax.xaxis.set_major_formatter(xfmt)
+	plt.plot(datetime_convert, b_total_list, color='black')
+	plt.scatter(datetime_convert, b_total_list, color='black')
 
 	from scipy import stats # trimmed mean to remove percent_trim% of both ends of the mean
 	percent_trim = 0.45
 	trimmed_mean = stats.trim_mean(b_total_list, percent_trim)
-
-	plt.plot(b_total_list, color='blue')
-	trimmed_mean = stats.trim_mean(b_total_list, .15)
-	plt.plot([trimmed_mean]*len(b_total_list), '--', color='red') # print with mean
+	plt.plot(datetime_convert, [trimmed_mean]*len(b_total_list), '--', color='red') # print with mean
 
 	## Red line for regions above the cutoff 25%
 	great_25 = []
 	cutoff_percent = abs(trimmed_mean * .25)
 	cutoff = trimmed_mean + cutoff_percent
-	plt.plot([cutoff]*len(b_total_list), '--', color='green') # print with mean
+	plt.plot(datetime_convert, [cutoff]*len(b_total_list), '--', color='green') # print with mean 25% cutoff
 
 	print("trimmed mean = {0}".format(trimmed_mean))
-	print("cutoff = {0}".format(cutoff))
+	print("25% cutoff = {0}".format(cutoff))
+
 	for event in b_total_list:
 		if event >= cutoff:
 			great_25.append(event)
 		else:
 			great_25.append(np.nan)
-	plt.plot(great_25, color='red')
+	plt.scatter(datetime_convert, great_25, color='blue')
+	plt.plot(datetime_convert, great_25, color='blue') # overlay graph with regions that are above the mean
 
 	## Point for the peak among the red lines for cutoff
 	# find the max for each group of values that are above red
@@ -97,9 +104,7 @@ def magEnhance(datetime_list, b_total_list):
 		index, max_value = max(enumerate(sublist), key=operator.itemgetter(1))
 		index_list.append(index)
 		max_print_list.append(max_value)
-	#print(above_cutoff_groupings)
-	#print(index_list)
-	#print(max_print_list)
+
 	# find the single max value for cutoff sections
 	max_point = []
 	for max_pt in great_25:
@@ -110,18 +115,25 @@ def magEnhance(datetime_list, b_total_list):
 	#assert no duplicates values in the code (should only be a list of max values), if not, is storing the same value in more than one place
 	if np.count_nonzero(~np.isnan(max_point)) != len(max_print_list):
 		print("WARNING: duplicates found, {0}!={1}".format(np.count_nonzero(~np.isnan(max_point)), len(max_print_list)))
-	plt.scatter(range(0, len(max_point)), max_point, color='red')
+	plt.scatter(datetime_convert, max_point, color='red')
+	plt.scatter(datetime_convert, max_point, color='red')
 
-	plt.title('Events in IFE Search: {0}'.format(os.path.basename(os.path.splitext(filename)[0])))
+	plt.title('Events: {0}'.format(os.path.basename(os.path.splitext(filename)[0])))
 	plt.ylabel('|B| [nT]')
 	plt.xlabel('Datetime')
-	#plt.savefig('output_img/{0}.png'.format(os.path.basename(os.path.splilstext(filename)[0])))
+	plt.xticks(rotation=90)
+	#plt.gcf().autofmt_xdate() # turn x-axis on side for easy of reading
+	ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+	ax.tick_params(axis='x', which='major', labelsize=3) # change size of font for x-axis
+	plt.tight_layout() # fit x-axis title on bottom
+
+	#plt.savefig('output_img/{0}.png'.format(os.path.basename(os.path.splitext(filename)[0])))
 	plt.show()
 
 	return max_point
 
 ## SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
-def eventDur():
+def eventDur(datetime_lst, b_total):
 	'''
 	an event duration is defined as the time before and after a peak for |B| to return to the ambient (averaged over four hours)
 	field magnitude. 
@@ -176,7 +188,6 @@ if __name__ == '__main__':
 	# store data as grouped namedtuples
 	#Person = collections.namedtuple('Person', 'name age gender')
 	#bob = Person(name='Bob', age=30, gender='male')
-
 	# store each value in its own list
 	#ife_processing = namedtuple('ife_processing', 'datetime btotal bx by bz')
 	#for i in range(len(csv_data)):
@@ -184,6 +195,6 @@ if __name__ == '__main__':
 	#print(ife_processing)
 
 	peaks_list = magEnhance(datetime_lst, b_total)
-
+	print(peaks_list)
 	#outputCSV(filename, ife_processing)
 
