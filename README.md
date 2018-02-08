@@ -18,4 +18,23 @@ Required packages:
 ```python ife_processing.py -F <filename>.txt```
 
 # Current Output
+
+With event:
+```
+trimmed mean = -0.814758658791
+25% cutoff = -0.611068994093
+time cutoff = 10 minutes
+size of datetime: 14371 seconds, 239.52 minutes
+total events = 3
+average event length 22.2056 minutes
+```
+![example_output](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/JUNE_2009_STEREO_A.png)
+
+Without events:
+```
+trimmed mean = -0.56126
+25% cutoff = -0.420945
+time cutoff = 10 minutes
+size of datetime: 6
+```
 ![example_output](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/JUNE_TEST.png)
