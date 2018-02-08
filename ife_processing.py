@@ -24,11 +24,11 @@ def outputCSV(filename, data_list):
 	output_filename = "{0}_data.csv".format(given_file.upper())
 	import csv
 	with open(output_filename, 'w+') as txt_data:
-		fieldnames = ['year', 'month', 'day', 'hour', 'minute', 'second', 'millisecond', 'btotal', 'bx', 'by', 'bz']
+		fieldnames = ['year', 'month', 'day', 'hour', 'minute', 'second', 'btotal', 'bx', 'by', 'bz']
 		writer = csv.DictWriter(txt_data, fieldnames=fieldnames)
 		writer.writeheader() 
 		for data in data_list:
-			writer.writerow({'year': data[0], 'month': data[1], 'day': data[2], 'hour': data[3], 'second': data[4], 'millisecond': data[5], 'btotal': data[6], 'bx': data[7], 'by': data[8], 'bz': data[9]})
+			writer.writerow({'year': data[0], 'month': data[1], 'day': data[2], 'hour': data[3], 'minute': data[4], 'second': data[5], 'btotal': data[6], 'bx': data[7], 'by': data[8], 'bz': data[9]})
 	print("OUTPUT FILE SAVED AS '{0}'".format(output_filename))
 
 ########### Convert string to datetime
@@ -91,16 +91,47 @@ def magEnhance(datetime_list, b_total_list):
 			great_25.append(event)
 		else:
 			great_25.append(np.nan)
-	plt.scatter(datetime_convert, great_25, color='blue')
-	plt.plot(datetime_convert, great_25, color='blue') # overlay graph with regions that are above the mean
 
+	################## Only hold greater than 25% value that last longer than x minutes
+	#%Y-%m-%d %H:%M:%S.%f
+	time_cutoff_in_minutes = 10
+	time_cutoff = time_cutoff_in_minutes * 60
+	print("time cutoff = {0} minutes".format(time_cutoff_in_minutes))
+	print("size of datetime: {0} seconds, {1:.2f} minutes".format(len(datetime_convert), float(float(len(datetime_convert))/60)))
+	timer_cutoff_lst = list(great_25)
+	timer_nan_groups = [timer_cutoff_lst[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(timer_cutoff_lst))] # groups of non-nan values
+
+	event_totals = 0
+	average_event = 0
+	group_index = 0
+	event_lst = []
+	for i in range(len(timer_cutoff_lst)):
+		if timer_cutoff_lst[i] is not np.nan:
+			if group_index < len(timer_nan_groups):
+				if len(timer_nan_groups[group_index]) <= time_cutoff:
+					for j in range(i, i+len(timer_nan_groups[group_index])):
+						#print(timer_cutoff_lst[j])
+						timer_cutoff_lst[j] = np.nan
+				else:
+					event_totals += 1
+					average_event += len(timer_nan_groups[group_index])
+					event_lst.append(timer_nan_groups[group_index])
+				i += len(timer_nan_groups[group_index]) # iterate down cutoff list to next section
+				#print("jump {0} seconds to {1} of total {2}".format(len(timer_nan_groups[group_index]), i, len(timer_cutoff_lst)))
+				group_index += 1
+	print("total events = {0}".format(event_totals))
+	if event_totals > 0:
+		print("average event length {0:.4f} minutes".format((float(average_event) / event_totals)/60))
+
+	plt.scatter(datetime_convert, timer_cutoff_lst, color='blue')
+	plt.plot(datetime_convert, timer_cutoff_lst, color='blue') # overlay graph with regions that are above the cutoffs
+	
 	################## Point for the peak among the red lines for cutoff
 	# find the max for each group of values that are above red
-	above_cutoff_groupings = [great_25[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(great_25))]
 	import operator
 	index_list = []
 	max_print_list = []
-	for sublist in above_cutoff_groupings:
+	for sublist in event_lst:
 		index, max_value = max(enumerate(sublist), key=operator.itemgetter(1))
 		index_list.append(index)
 		max_print_list.append(max_value)
@@ -128,13 +159,14 @@ def magEnhance(datetime_list, b_total_list):
 	# creates list with max point (peak) and the left/right adjacent values as red
 	plt.plot(datetime_convert, red_adjacent, color='red')
 
+
 	################## Plot axis titles and format font size
 	plt.title('Events: {0}'.format(os.path.basename(os.path.splitext(filename)[0])))
 	plt.ylabel('|B| [nT]')
-	plt.xlabel('Datetime')
+	plt.xlabel('Datetime (5 min. intervals)')
 	plt.xticks(rotation=90)
 	#plt.gcf().autofmt_xdate() # turn x-axis on side for easy of reading
-	ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+	ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
 	ax.tick_params(axis='x', which='major', labelsize=3) # change size of font for x-axis
 	plt.tight_layout() # fit x-axis title on bottom
 
@@ -186,8 +218,7 @@ if __name__ == '__main__':
 			start_data = i # save the index of the start of the data (typically 102)
 	csv_data = graph_data[start_data+1:] # splice all data for just the graphable data (+1 to not include 'DATA:') 
 	csv_data = [row.split(',') for row in csv_data]
-	#for row in csv_data:
-	#	print(row)
+	#outputCSV(filename, csv_data)
 	
 	datetime_lst = datetime_convert(csv_data)
 
@@ -207,5 +238,5 @@ if __name__ == '__main__':
 
 	peaks_list = magEnhance(datetime_lst, b_total)
 	#print(peaks_list)
-	#outputCSV(filename, ife_processing)
+
 
