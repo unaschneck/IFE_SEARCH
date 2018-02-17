@@ -72,6 +72,8 @@ def magEnhance(datetime_list, b_total_list):
 	plt.plot(datetime_convert, b_total_list, color='black')
 	plt.scatter(datetime_convert, b_total_list, color='black')
 
+	plt.plot(datetime_convert, [0]*len(b_total_list), ':', color='black') # print at zeroes
+
 	from scipy import stats # trimmed mean to remove percent_trim% of both ends of the mean
 	percent_trim = 0.45
 	trimmed_mean = stats.trim_mean(b_total_list, percent_trim)
@@ -94,10 +96,11 @@ def magEnhance(datetime_list, b_total_list):
 
 	################## Only hold greater than 25% value that last longer than x minutes
 	#%Y-%m-%d %H:%M:%S.%f
-	time_cutoff_in_minutes = 10
+	time_cutoff_in_minutes = .1
 	time_cutoff = time_cutoff_in_minutes * 60
 	print("time cutoff = {0} minutes".format(time_cutoff_in_minutes))
-	print("size of datetime: {0} seconds, {1:.2f} minutes".format(len(datetime_convert), float(float(len(datetime_convert))/60)))
+	# each row accounts for 1 second
+	print("size of datetime: {0} seconds = {1:.2f} minutes".format(len(datetime_convert), float(float(len(datetime_convert))/60)))
 	timer_cutoff_lst = list(great_25)
 	timer_nan_groups = [timer_cutoff_lst[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(timer_cutoff_lst))] # groups of non-nan values
 
@@ -119,9 +122,9 @@ def magEnhance(datetime_list, b_total_list):
 				i += len(timer_nan_groups[group_index]) # iterate down cutoff list to next section
 				#print("jump {0} seconds to {1} of total {2}".format(len(timer_nan_groups[group_index]), i, len(timer_cutoff_lst)))
 				group_index += 1
-	print("total events = {0}".format(event_totals))
+	print("total possible events = {0}".format(event_totals))
 	if event_totals > 0:
-		print("average event length {0:.4f} minutes".format((float(average_event) / event_totals)/60))
+		print("average possible event length {0:.4f} minutes".format((float(average_event) / event_totals)/60))
 
 	plt.scatter(datetime_convert, timer_cutoff_lst, color='blue')
 	plt.plot(datetime_convert, timer_cutoff_lst, color='blue') # overlay graph with regions that are above the cutoffs
@@ -159,7 +162,6 @@ def magEnhance(datetime_list, b_total_list):
 	# creates list with max point (peak) and the left/right adjacent values as red
 	plt.plot(datetime_convert, red_adjacent, color='red')
 
-
 	################## Plot axis titles and format font size
 	plt.title('Events: {0}'.format(os.path.basename(os.path.splitext(filename)[0])))
 	plt.ylabel('|B| [nT]')
@@ -171,9 +173,8 @@ def magEnhance(datetime_list, b_total_list):
 	plt.tight_layout() # fit x-axis title on bottom
 
 	#plt.savefig('output_img/{0}.png'.format(os.path.basename(os.path.splitext(filename)[0])))
-	plt.show()
-
-	return max_point
+	#plt.show()
+	return timer_cutoff_lst
 
 ## SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
 def eventDur(datetime_lst, b_total):
@@ -185,13 +186,72 @@ def eventDur(datetime_lst, b_total):
 	pass
 
 ## THIRD CRITERIA: CURENT SHEET IS PRESENT NEAR PEAK |B|
-def jSheet():
+def jSheet(datetime_list, events_list, b_val):
 	'''
 	a current sheet is present for a sharp rotation of at least one of the components. 
 	Return true if (i) at least one component of B changes from positive -> negative (or vv) within the duration of the event
 	(ii) and the change happens within a minute
 	'''
-	pass
+	time_cutoff_in_minutes = 1
+	time_cutoff = time_cutoff_in_minutes * 60
+	print("\njsheet time cutoff = {0} minutes".format(time_cutoff_in_minutes))
+	#print(events_list)
+	
+	from operator import itemgetter # find sequences of consecutive values
+	import itertools
+	group_nonnan_index = [x for x in range(len(events_list)) if events_list[x] is not np.nan]
+	#print("\time non nan ={0}".format(group_nonnan_index))
+
+	timestamps_index = [] # list of lists of values in consecutive order: [[1,2,3],[7,8],[11]]
+	for k, g in itertools.groupby(enumerate(group_nonnan_index), lambda x: x[1]-x[0]):
+		consec_order = list(map(itemgetter(1), g))
+		if len(consec_order) <= time_cutoff:
+			timestamps_index.append(consec_order)
+	#print(timestamps_index)
+
+	#store the events that take place in the time cutofft
+	jsheet_timecutoff_events = []
+	jsheet_index = []
+	for index in timestamps_index:
+		timespan_sublist = [b_val[i] for i in index]
+		if not all(i >= 0 for i in timespan_sublist) and not all(i <= 0 for i in timespan_sublist):
+			jsheet_index.append(index)
+			jsheet_timecutoff_events.append(timespan_sublist)
+
+	print(jsheet_timecutoff_events)
+	print(jsheet_index)
+	print("found jsheet events = {0}".format(len(jsheet_timecutoff_events)))
+	b_plot_jsheet = [np.nan]*len(datetime_list)
+
+	for (index, value) in zip(jsheet_index, jsheet_timecutoff_events):
+		#print(index, value)
+		for i in range(len(index)):
+			b_plot_jsheet[index[i]] = value[i]
+	#print(b_plot_jsheet)
+	return b_plot_jsheet
+
+def jSheetComparePlot(datetime_list, bx, by, bz):
+	# plot all three values if they create an event
+	# share the x axis among all three graphs
+
+	# Three subplots sharing both x/y axes
+	f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True)
+	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_lst] # convert datetime to format to use on x-axis
+	import matplotlib.dates as mdates
+	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
+	ax1.xaxis.set_major_formatter(xfmt)
+	ax1.set_title('Bx')
+	ax1.plot(datetime_convert, bx, color='red')
+	#plt.ylabel("[nT]")
+	
+	ax2.set_title('By')
+	ax2.plot(datetime_convert, by, color='green')
+	
+	ax3.set_title('Bz')
+	ax3.plot(datetime_convert, bz, color='blue')
+	#f.subplots_adjust(hspace=0)
+	plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+	plt.show()
 
 ## FOURTH CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
 def noRot():
@@ -226,17 +286,15 @@ if __name__ == '__main__':
 	b_x = [float(col[8]) for col in csv_data]
 	b_y = [float(col[9]) for col in csv_data]
 	b_z = [float(col[10]) for col in csv_data]
+	jSheetComparePlot(datetime_lst, b_x, b_y, b_z)
 
-	# store data as grouped namedtuples
-	#Person = collections.namedtuple('Person', 'name age gender')
-	#bob = Person(name='Bob', age=30, gender='male')
-	# store each value in its own list
-	#ife_processing = namedtuple('ife_processing', 'datetime btotal bx by bz')
-	#for i in range(len(csv_data)):
-	#	ife_data = ife_processing(datetime=datetime_lst[i], btotal=b_total[i], bx=b_x[i], by=b_y[i], bz=b_z[i])
-	#print(ife_processing)
-
-	peaks_list = magEnhance(datetime_lst, b_total)
-	#print(peaks_list)
+	possible_events = magEnhance(datetime_lst, b_total) # finds possible events for a given time frame
+	
+	bx_jsheet_events = jSheet(datetime_lst, possible_events, b_x) # filter possible events for neg/pos change
+	by_jsheet_events = jSheet(datetime_lst, possible_events, b_y) # filter possible events for neg/pos change
+	bz_jsheet_events = jSheet(datetime_lst, possible_events, b_z) # filter possible events for neg/pos change
+	jSheetComparePlot(datetime_lst, bx_jsheet_events, by_jsheet_events, bz_jsheet_events)
+	
+	#TODO: plot the data with the filters so it only shows jsheet events
 
 
