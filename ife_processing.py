@@ -6,6 +6,8 @@ import numpy as np
 from collections import namedtuple
 from datetime import datetime
 import matplotlib.pyplot as plt
+from operator import itemgetter # find sequences of consecutive values
+import itertools
 
 # FORMAT FOR USE: python ife_tmp.py -F <FILENAME.TXT>
 ########### Pre-Processing File
@@ -28,6 +30,7 @@ def outputCSV(filename, data_list):
 		writer = csv.DictWriter(txt_data, fieldnames=fieldnames)
 		writer.writeheader() 
 		for data in data_list:
+			print(data)
 			writer.writerow({'year': data[0], 'month': data[1], 'day': data[2], 'hour': data[3], 'minute': data[4], 'second': data[5], 'btotal': data[6], 'bx': data[7], 'by': data[8], 'bz': data[9]})
 	print("OUTPUT FILE SAVED AS '{0}'".format(output_filename))
 
@@ -96,7 +99,7 @@ def magEnhance(datetime_list, b_total_list):
 
 	################## Only hold greater than 25% value that last longer than x minutes
 	#%Y-%m-%d %H:%M:%S.%f
-	time_cutoff_in_minutes = .1
+	time_cutoff_in_minutes = 10
 	time_cutoff = time_cutoff_in_minutes * 60
 	print("time cutoff = {0} minutes".format(time_cutoff_in_minutes))
 	# each row accounts for 1 second
@@ -192,13 +195,11 @@ def jSheet(datetime_list, events_list, b_val):
 	Return true if (i) at least one component of B changes from positive -> negative (or vv) within the duration of the event
 	(ii) and the change happens within a minute
 	'''
-	time_cutoff_in_minutes = 1
+	time_cutoff_in_minutes = 10
 	time_cutoff = time_cutoff_in_minutes * 60
-	print("\njsheet time cutoff = {0} minutes".format(time_cutoff_in_minutes))
+	print("jsheet time cutoff = {0} minutes".format(time_cutoff_in_minutes))
 	#print(events_list)
 	
-	from operator import itemgetter # find sequences of consecutive values
-	import itertools
 	group_nonnan_index = [x for x in range(len(events_list)) if events_list[x] is not np.nan]
 	#print("\time non nan ={0}".format(group_nonnan_index))
 
@@ -218,8 +219,8 @@ def jSheet(datetime_list, events_list, b_val):
 			jsheet_index.append(index)
 			jsheet_timecutoff_events.append(timespan_sublist)
 
-	print(jsheet_timecutoff_events)
-	print(jsheet_index)
+	#print(jsheet_timecutoff_events)
+	#print(jsheet_index)
 	print("found jsheet events = {0}".format(len(jsheet_timecutoff_events)))
 	b_plot_jsheet = [np.nan]*len(datetime_list)
 
@@ -228,15 +229,17 @@ def jSheet(datetime_list, events_list, b_val):
 		for i in range(len(index)):
 			b_plot_jsheet[index[i]] = value[i]
 	#print(b_plot_jsheet)
-	return b_plot_jsheet
+	#return b_plot_jsheet
+	return jsheet_index
 
-def jSheetComparePlot(datetime_list, bx, by, bz):
-	# plot all three values if they create an event
-	# share the x axis among all three graphs
+def multiplePlot(datetime_list, bx, by, bz, btotal, counter):
+	# plot all four values if they create an event
+	# share the x axis among all four graphs
 
-	# Three subplots sharing both x/y axes
-	f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True)
-	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_lst] # convert datetime to format to use on x-axis
+	# four subplots sharing both x/y axes
+	f, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True, sharey=True)
+	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_list] # convert datetime to format to use on x-axis
+	ax1.set_title('Events: {0}-{1}'.format(datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
 	import matplotlib.dates as mdates
 	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
 	ax1.xaxis.set_major_formatter(xfmt)
@@ -249,9 +252,14 @@ def jSheetComparePlot(datetime_list, bx, by, bz):
 	
 	ax3.set_title('Bz')
 	ax3.plot(datetime_convert, bz, color='blue')
+	
+	ax4.set_title('B_total')
+	ax4.plot(datetime_convert, btotal, color='black')
+	
 	#f.subplots_adjust(hspace=0)
 	plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
-	plt.show()
+	plt.savefig('output_img/{0}_{1}.png'.format(os.path.basename(os.path.splitext(filename)[0]), counter))
+	#plt.show()
 
 ## FOURTH CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
 def noRot():
@@ -260,6 +268,8 @@ def noRot():
 	pass
 
 if __name__ == '__main__':
+	start_time = datetime.now()
+
 	import argparse
 	parser = argparse.ArgumentParser(description="flag format given as: -F <filename>")
 	parser.add_argument('-F', '-filename', help="filename from data")
@@ -269,7 +279,9 @@ if __name__ == '__main__':
 	if filename is None:
 		print("\n\tWARNING: File not given, exiting...\n")
 		exit()
-
+		
+	# processing for STEREO data
+	# TODO: other data lsformats
 	graph_data = readFile(filename)
 	start_data = 0
 	for i in range(len(graph_data)):
@@ -282,19 +294,87 @@ if __name__ == '__main__':
 	
 	datetime_lst = datetime_convert(csv_data)
 
-	b_total = [float(col[7]) for col in csv_data]
 	b_x = [float(col[8]) for col in csv_data]
 	b_y = [float(col[9]) for col in csv_data]
 	b_z = [float(col[10]) for col in csv_data]
-	jSheetComparePlot(datetime_lst, b_x, b_y, b_z)
+	b_total = [float(col[7]) for col in csv_data]
+	#multiplePlot(datetime_lst, b_x, b_y, b_z, b_total)
 
 	possible_events = magEnhance(datetime_lst, b_total) # finds possible events for a given time frame
 	
+	print("\nbx")
 	bx_jsheet_events = jSheet(datetime_lst, possible_events, b_x) # filter possible events for neg/pos change
-	by_jsheet_events = jSheet(datetime_lst, possible_events, b_y) # filter possible events for neg/pos change
-	bz_jsheet_events = jSheet(datetime_lst, possible_events, b_z) # filter possible events for neg/pos change
-	jSheetComparePlot(datetime_lst, bx_jsheet_events, by_jsheet_events, bz_jsheet_events)
+	bx_jsheet_events = [item for sublist in bx_jsheet_events for item in sublist] # flatten
+	#print(bx_jsheet_events)
 	
-	#TODO: plot the data with the filters so it only shows jsheet events
+	print("\nby")
+	by_jsheet_events = jSheet(datetime_lst, possible_events, b_y) # filter possible events for neg/pos change
+	by_jsheet_events = [item for sublist in by_jsheet_events for item in sublist] # flatten
+	#print(by_jsheet_events)
 
+	print("\nbz")
+	bz_jsheet_events = jSheet(datetime_lst, possible_events, b_z) # filter possible events for neg/pos change
+	bz_jsheet_events = [item for sublist in bz_jsheet_events for item in sublist] # flatten
+	#print(bz_jsheet_events)
+
+	print("\n")
+
+	# Determine where the x, y, z share timestamps during the events
+	bxy_shared = []
+	for x in bx_jsheet_events:
+		if x in by_jsheet_events:
+			bxy_shared.append(x)
+
+	byz_shared = []
+	for y in by_jsheet_events:
+		if y in bz_jsheet_events:
+			byz_shared.append(y)
+
+	bzx_shared = []
+	for z in bz_jsheet_events:
+		if z in bx_jsheet_events:
+			bzx_shared.append(z)
+	
+	timestamps_index = [] # list of lists of values in consecutive order: [[1,2,3],[7,8],[11]]
+	if bxy_shared and not byz_shared and not bzx_shared:
+		for k, g in itertools.groupby(enumerate(bxy_shared), lambda x: x[1]-x[0]):
+			consec_order = list(map(itemgetter(1), g))
+			timestamps_index.append(consec_order)
+	if byz_shared and not bzx_shared and not bxy_shared:
+		for k, g in itertools.groupby(enumerate(byz_shared), lambda x: x[1]-x[0]):
+			consec_order = list(map(itemgetter(1), g))
+			timestamps_index.append(consec_order)
+	if bzx_shared and not bxy_shared and not byz_shared:
+		for k, g in itertools.groupby(enumerate(bzx_shared), lambda x: x[1]-x[0]):
+			consec_order = list(map(itemgetter(1), g))
+			timestamps_index.append(consec_order)
+	
+	# check that bx and by are changing signs
+	# update timestamp index
+	remove_elements = [] # elements where the averages is not opposite, to be removed
+	for updated_time in timestamps_index:
+		# see if a list of value is increasing or decreasing
+		x_average = sum(list(itemgetter(*updated_time)(b_x))) / len(updated_time)
+		y_average = sum(list(itemgetter(*updated_time)(b_y))) / len(updated_time)
+		if (x_average > 0) and (y_average > 0): # if x is pos and y is pos (remove)
+			remove_elements.append(updated_time)
+		if (x_average < 0) and (y_average < 0): # if x is neg and y is neg (remove)
+			remove_elements.append(updated_time)
+
+	#print(remove_elements)
+	#print(len(timestamps_index))
+	timestamps_index = [x for x in timestamps_index if x not in remove_elements]
+	#print(len(timestamps_index))
+	counter = 0
+	for sub_graph in timestamps_index:
+		counter += 1 # increment data figure counter
+		multiplePlot(list(itemgetter(*sub_graph)(datetime_lst)),
+					list(itemgetter(*sub_graph)(b_x)),
+					list(itemgetter(*sub_graph)(b_y)),
+					list(itemgetter(*sub_graph)(b_z)),
+					list(itemgetter(*sub_graph)(b_total)),
+					counter)
+	print("graphing {0} sub graphs for each interval".format(counter))
+
+	print("\nGraphing ran for {0}".format(datetime.now() - start_time))
 
