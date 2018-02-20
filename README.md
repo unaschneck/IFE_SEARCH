@@ -38,3 +38,4 @@ time cutoff = 10 minutes
 size of datetime: 6
 ```
 ![example_output](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/JUNE_TEST.png)
+![example_output1](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/stereo_event_example_1.png)
