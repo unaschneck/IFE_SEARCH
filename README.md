@@ -11,6 +11,7 @@ __Selection Criteria (Lai et al. 2017):__
 
 # To Run Code
 1. Download or clone repo
+2. Input data must be in GSE Coordinates
 
 Required packages: 
 
