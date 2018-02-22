@@ -39,4 +39,11 @@ time cutoff = 10 minutes
 size of datetime: 6
 ```
 ![example_output](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/JUNE_TEST.png)
-![example_output1](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/stereo_event_example_1.png)
+![example_output1](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/stereo_event_example_1.png)\
+
+
+# To Do
+
+1. Update for ACE data file type (need coordinate change for STEREO)
+2. Add zero line for the subplots
+3. Center the event in the subplots
