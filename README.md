@@ -47,3 +47,4 @@ size of datetime: 6
 1. Update for ACE data file type (need coordinate change for STEREO)
 2. Add zero line for the subplots
 3. Center the event in the subplots
+4. Add labels for the y axis (nT) and for clean up the time on the x axis 
