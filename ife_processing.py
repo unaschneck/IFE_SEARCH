@@ -10,7 +10,17 @@ from operator import itemgetter # find sequences of consecutive values
 import itertools
 
 # FORMAT FOR USE: python ife_tmp.py -F <FILENAME.TXT>
+## FIRST CRITERIA: MAGNETIC FIELD ENHANCEMENT IS LARGER THAN 25% OF AMBIENT
+## SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
+## THIRD CRITERIA: CURENT SHEET IS PRESENT NEAR PEAK |B|
+## FOURTH CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
+
+
 ########### Pre-Processing File
+def detectFileType(filename):
+	# detect file type for pre-processing: ACE, STEREO, etc..
+	pass
+
 def readFile(filename):
 	# read in file
 	with open(filename, "r") as given_file:
@@ -19,24 +29,85 @@ def readFile(filename):
 		file_data = [row.replace("\n" , "") for row in file_data]
 	return file_data
 
+def processACEdata(graph_data):
+	# store ACE data in list of list (all formats saved this way)
+	'''
+	start format: 03-04-2007 00:00:00.890  4.18300  3.18400  -2.33400  1.38100
+	result stored as:
+	['2009', '006', '08', '23', '59', '29', '000', '2.1987', '4.2269', '-1.0491', '4.8787'], 
+	['2009', '006', '08', '23', '59', '30', '000', '2.1729', '4.1750', '-1.0475', '4.8217']]
+	'''
+	start_data = 0
+	for i in range(len(graph_data)):
+		graph_data[i] = re.sub("\s+", ",", graph_data[i].strip())
+		if graph_data[i][0] != "#": # find where the commented out region ends (around 58)
+			start_data = i
+			break
+	updated_graph_data = graph_data[start_data+3:] # start data when section isn't a comment (only data)
+	
+	ace_csv_data = [] # store each row as a list of list
+	invalid_data_found = False
+
+	for row in updated_graph_data: # format how the data is currently stored
+		#print(row)
+		year = row[6:10]
+		month = row[3:5]
+		day = row[:2]
+		hour = row[11:13]
+		minute = row[14:16]
+		second = row[17:19]
+		millisecond = row[20:23]
+		
+		b_data = row[24:].split()
+		if '-1.00000E+31' == b_data[0]:
+			invalid_data_found = True
+			btotal = np.nan 
+			bx = np.nan 
+			by = np.nan
+			bz = np.nan
+		else:
+			btotal = b_data[0]
+			bx = b_data[1] 
+			by = b_data[2]
+			bz = b_data[3]
+		ace_csv_data.append([year, month, day, hour, minute, second, millisecond, btotal, bx, by, bz])
+	
+	if invalid_data_found: 
+		print("WARNING: Invalid data -1.00000E+31 found, converted to nan")
+	return ace_csv_data
+
 ########### Save Data as CSV
 def outputCSV(filename, data_list):
-	# save data from text as a csv
+	# save data from text as a csv (STERO)
 	given_file = os.path.basename(os.path.splitext(filename)[0]) # return only the filename and not the extension
 	output_filename = "{0}_data.csv".format(given_file.upper())
 	import csv
 	with open(output_filename, 'w+') as txt_data:
-		fieldnames = ['year', 'month', 'day', 'hour', 'minute', 'second', 'btotal', 'bx', 'by', 'bz']
+		fieldnames = ['year', 'month', 'day', 'hour', 'minute', 'second', 'millisecond', 'btotal', 'bx', 'by', 'bz']
 		writer = csv.DictWriter(txt_data, fieldnames=fieldnames)
 		writer.writeheader() 
 		for data in data_list:
-			print(data)
-			writer.writerow({'year': data[0], 'month': data[1], 'day': data[2], 'hour': data[3], 'minute': data[4], 'second': data[5], 'btotal': data[6], 'bx': data[7], 'by': data[8], 'bz': data[9]})
-	print("OUTPUT FILE SAVED AS '{0}'".format(output_filename))
+			if '+31' not in data:
+				writer.writerow({'year': data[0],
+								 'month': data[1], 
+								 'day': data[2], 
+								 'hour': data[3], 
+								 'minute': data[4], 
+								 'second': data[5], 
+								 'millisecond': data[6], 
+								 'btotal': data[7], 
+								 'bx': data[8], 
+								 'by': data[9], 
+								 'bz': data[10]})
+	print("DATA SAVED AS '{0}'".format(output_filename))
+
+
 
 ########### Convert string to datetime
 def datetime_convert(csv_data):
 	# covert to datetime format
+	#for col in csv_data:
+	#	print(col[6])
 	datetime_year = [int(col[0]) for col in csv_data]
 	datetime_month = [int(col[1]) for col in csv_data]
 	datetime_day = [int(col[2]) for col in csv_data]
@@ -44,7 +115,6 @@ def datetime_convert(csv_data):
 	datetime_minute = [int(col[4]) for col in csv_data]
 	datetime_second = [int(col[5]) for col in csv_data]
 	datetime_millisecond = [int(col[6]) for col in csv_data]
-
 	dt = [] # datetime: '2009-6-8 23:59:27.0'
 	for i in range(len(csv_data)):
 		dt.append("{0}-{1}-{2} {3}:{4}:{5}.{6}".format(datetime_year[i],
@@ -54,12 +124,10 @@ def datetime_convert(csv_data):
 																datetime_minute[i],
 																datetime_second[i],
 											 					datetime_millisecond[i]))
-	#print(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f'))
+	print("Date range of data: '{0}' to '{1}'\n".format(dt[0], dt[len(dt)-1]))
 	return dt#[datetime.strptime(t, '%Y-%m-%d %H:%M:%S.%f') for t in dt] # convert to datetime
 
 ########### IFE IDENTIFICATION CRITERIA
-
-## FIRST CRITERIA: MAGNETIC FIELD ENHANCEMENT IS LARGER THAN 25% OF AMBIENT
 def magEnhance(datetime_list, b_total_list):
 	'''
 	define an ambient magnetic field magnitude over a four hour interval and compare the peak of |B| (where the derivative is zero)
@@ -90,10 +158,10 @@ def magEnhance(datetime_list, b_total_list):
 
 	print("trimmed mean = {0}".format(trimmed_mean))
 	print("25% cutoff = {0}".format(cutoff))
-
-	for event in b_total_list:
-		if event >= cutoff:
-			great_25.append(event)
+	
+	for event_index in range(len(b_total_list)):
+		if b_total_list[event_index] >= cutoff:
+			great_25.append(b_total_list[event_index])
 		else:
 			great_25.append(np.nan)
 
@@ -103,31 +171,34 @@ def magEnhance(datetime_list, b_total_list):
 	time_cutoff = time_cutoff_in_minutes * 60
 	print("time cutoff = {0} minutes".format(time_cutoff_in_minutes))
 	# each row accounts for 1 second
-	print("size of datetime: {0} seconds = {1:.2f} minutes".format(len(datetime_convert), float(float(len(datetime_convert))/60)))
+	print("size of datetime: {0} seconds = {1:.2f} minutes\n".format(len(datetime_convert), float(float(len(datetime_convert))/60)))
 	timer_cutoff_lst = list(great_25)
 	timer_nan_groups = [timer_cutoff_lst[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(timer_cutoff_lst))] # groups of non-nan values
 
-	event_totals = 0
 	average_event = 0
 	group_index = 0
 	event_lst = []
+	date_index = [] # stores the range of index values where the cuttoff is satisfed, used for printing date range
 	for i in range(len(timer_cutoff_lst)):
 		if timer_cutoff_lst[i] is not np.nan:
 			if group_index < len(timer_nan_groups):
 				if len(timer_nan_groups[group_index]) <= time_cutoff:
 					for j in range(i, i+len(timer_nan_groups[group_index])):
-						#print(timer_cutoff_lst[j])
 						timer_cutoff_lst[j] = np.nan
 				else:
-					event_totals += 1
 					average_event += len(timer_nan_groups[group_index])
 					event_lst.append(timer_nan_groups[group_index])
+					date_index.append([i, i+len(timer_nan_groups[group_index])])
 				i += len(timer_nan_groups[group_index]) # iterate down cutoff list to next section
 				#print("jump {0} seconds to {1} of total {2}".format(len(timer_nan_groups[group_index]), i, len(timer_cutoff_lst)))
 				group_index += 1
-	print("total possible events = {0}".format(event_totals))
-	if event_totals > 0:
-		print("average possible event length {0:.4f} minutes".format((float(average_event) / event_totals)/60))
+	#print(event_lst)
+	print("total possible events = {0}".format(len(event_lst)))
+	if len(event_lst) > 0:
+		print("average possible event length {0:.4f} minutes\n".format((float(average_event) / len(event_lst)/60)))
+		## if event found, print log data for time span
+		for di in date_index:
+			print("Possible event at '{0}' to '{1}'".format(datetime_lst[di[0]], datetime_lst[di[1]]))
 
 	plt.scatter(datetime_convert, timer_cutoff_lst, color='blue')
 	plt.plot(datetime_convert, timer_cutoff_lst, color='blue') # overlay graph with regions that are above the cutoffs
@@ -151,7 +222,7 @@ def magEnhance(datetime_list, b_total_list):
 			max_point.append(max_pt)
 	#assert no duplicates values in the code (should only be a list of max values), if not, is storing the same value in more than one place
 	if np.count_nonzero(~np.isnan(max_point)) != len(max_print_list):
-		print("WARNING: duplicates found, {0}!={1}".format(np.count_nonzero(~np.isnan(max_point)), len(max_print_list)))
+		print("\nWARNING: duplicates found, {0}!={1}".format(np.count_nonzero(~np.isnan(max_point)), len(max_print_list)))
 	plt.scatter(datetime_convert, max_point, color='red')
 	# Make adjacent lines to peak red
 	red_adjacent = []
@@ -175,20 +246,10 @@ def magEnhance(datetime_list, b_total_list):
 	ax.tick_params(axis='x', which='major', labelsize=3) # change size of font for x-axis
 	plt.tight_layout() # fit x-axis title on bottom
 
-	#plt.savefig('output_img/{0}.png'.format(os.path.basename(os.path.splitext(filename)[0])))
+	plt.savefig('output_img/{0}.png'.format(os.path.basename(os.path.splitext(filename)[0])))
 	#plt.show()
 	return timer_cutoff_lst
 
-## SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
-def eventDur(datetime_lst, b_total):
-	'''
-	an event duration is defined as the time before and after a peak for |B| to return to the ambient (averaged over four hours)
-	field magnitude. 
-	Returns true if this duration is longer than 10 minutes.
-	'''
-	pass
-
-## THIRD CRITERIA: CURENT SHEET IS PRESENT NEAR PEAK |B|
 def jSheet(datetime_list, events_list, b_val):
 	'''
 	a current sheet is present for a sharp rotation of at least one of the components. 
@@ -261,12 +322,6 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, counter):
 	plt.savefig('output_img/{0}_{1}.png'.format(os.path.basename(os.path.splitext(filename)[0]), counter))
 	#plt.show()
 
-## FOURTH CRITERIA: AT LEAST ONE MAGNETIC COMPONENT DOES NOT ROTATE DURING THE ENHANCEMENT
-def noRot():
-	# a rotation of the magnetic field component is defined as when the component changes from positive -> negative (or vv)
-	# Returns true if at least one component does not change sign within the event
-	pass
-
 if __name__ == '__main__':
 	start_time = datetime.now()
 
@@ -280,19 +335,23 @@ if __name__ == '__main__':
 		print("\n\tWARNING: File not given, exiting...\n")
 		exit()
 		
-	# processing for STEREO data
-	# TODO: other data lsformats
 	graph_data = readFile(filename)
-	start_data = 0
+	# processing for ACE data
+	csv_data = processACEdata(graph_data)
+	outputCSV(filename, csv_data)
+	
+	'''	STERO DATA
 	for i in range(len(graph_data)):
 		graph_data[i] = re.sub("\s+", ",", graph_data[i].strip()) # replace all whitespace with commas in data
+		# for stereo data
 		if graph_data[i] == 'DATA:':
 			start_data = i # save the index of the start of the data (typically 102)
 	csv_data = graph_data[start_data+1:] # splice all data for just the graphable data (+1 to not include 'DATA:') 
 	csv_data = [row.split(',') for row in csv_data]
-	#outputCSV(filename, csv_data)
-	
+	outputCSV(filename, csv_data)
+	'''
 	datetime_lst = datetime_convert(csv_data)
+
 
 	b_x = [float(col[8]) for col in csv_data]
 	b_y = [float(col[9]) for col in csv_data]
@@ -364,17 +423,22 @@ if __name__ == '__main__':
 	#print(remove_elements)
 	#print(len(timestamps_index))
 	timestamps_index = [x for x in timestamps_index if x not in remove_elements]
-	#print(len(timestamps_index))
+	# print the start/end datetime for each event found by jsheet
+	if len(timestamps_index) > 0:
+		for event_time in timestamps_index:
+			time_span = list(itemgetter(*event_time)(datetime_lst))
+			print("Date range for events found by jsheet: '{0}' to '{1}".format(time_span[0], time_span[len(time_span)-1]))
 	counter = 0
 	for sub_graph in timestamps_index:
 		counter += 1 # increment data figure counter
+		#print(list(itemgetter(*sub_graph)(datetime_lst)))
 		multiplePlot(list(itemgetter(*sub_graph)(datetime_lst)),
 					list(itemgetter(*sub_graph)(b_x)),
 					list(itemgetter(*sub_graph)(b_y)),
 					list(itemgetter(*sub_graph)(b_z)),
 					list(itemgetter(*sub_graph)(b_total)),
 					counter)
-	print("graphing {0} sub graphs for each interval".format(counter))
+	print("graphing {0} sub graphs for each interval, saved to output_img".format(counter))
 
 	print("\nGraphing ran for {0}".format(datetime.now() - start_time))
 
