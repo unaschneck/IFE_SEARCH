@@ -1,3 +1,4 @@
+
 # IFE parser and csv
 import string
 import re
@@ -50,30 +51,31 @@ def processCSVACEdata(graph_data):
 	invalid_data_found = False
 
 	for row in updated_graph_data: # format how the data is currently stored
-		#print(row)
-		year = row[6:10]
-		month = row[3:5]
-		day = row[:2]
-		hour = row[11:13]
-		minute = row[14:16]
-		second = row[17:19]
-		millisecond = row[20:23]
+		if row[0] != '#':
+			#print(row)
+			year = row[6:10]
+			month = row[3:5]
+			day = row[:2]
+			hour = row[11:13]
+			minute = row[14:16]
+			second = row[17:19]
+			millisecond = row[20:23]
+			
+			b_data = row[24:].split()
+			#print(b_data)
+			if '-1.00000E+31' == b_data[0]:
+				invalid_data_found = True
+				btotal = np.nan 
+				bx = np.nan 
+				by = np.nan
+				bz = np.nan
+			else:
+				btotal = b_data[0]
+				bx = b_data[1] 
+				by = b_data[2]
+				bz = b_data[3]
+			ace_csv_data.append([year, month, day, hour, minute, second, millisecond, btotal, bx, by, bz])
 		
-		b_data = row[24:].split()
-		#print(b_data)
-		if '-1.00000E+31' == b_data[0]:
-			invalid_data_found = True
-			btotal = np.nan 
-			bx = np.nan 
-			by = np.nan
-			bz = np.nan
-		else:
-			btotal = b_data[0]
-			bx = b_data[1] 
-			by = b_data[2]
-			bz = b_data[3]
-		ace_csv_data.append([year, month, day, hour, minute, second, millisecond, btotal, bx, by, bz])
-	
 	if invalid_data_found: 
 		print("LOG WARNING: Invalid data -1.00000E+31 found, converted to nan")
 	return ace_csv_data
@@ -131,7 +133,8 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 	# plot all four values if they create an event
 	# share the x axis among all four graphs
 	# four subplots sharing both x/y axes
-	f, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True, sharey=True)
+	fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True, sharey=True)
+	#fig = plt.figure(figsize=(8.0, 5.0)) # size of the figure in inches
 	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_list] # convert datetime to format to use on x-axis
 	
 	import matplotlib.dates as mdates
@@ -151,23 +154,26 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 	ax4.plot(datetime_convert, btotal, color='black')
 	
 	#f.subplots_adjust(hspace=0)
-	plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+	plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
 	#ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
 	#ax1.tick_params(axis='x', which='major', labelsize=3) # change size of font for x-axis
 	#plt.tight_layout() # fit x-axis title on bottom
-	plt.suptitle('Events: {0}to {1}'.format(datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
-	print("Sub-graphs for bx, by, bz, btotal graph saved {0}_event{1}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
+	plt.suptitle('Event {0}: {1} to {2}'.format(sub_title, datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
+	print("\nSub-graphs for bx, by, bz, btotal graph saved {0}_event{1}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	plt.savefig('output_img/{0}_event{1}.png'.format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	#plt.show()
 
-def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_mean_trimmed, time_cutoff_in_minutes):
+def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_mean_trimmed, time_cutoff_in_minutes, change_mean_every_x_hours):
 	'''
 	define an ambient magnetic field magnitude over a four hour interval and compare the peak of |B| (where the derivative is zero)
 	to the ambient. 
 	Returns true if peak value is larger than (0.25)*(|B|avg)
 	'''
 	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_lst] # convert datetime to format to use on x-axis
+	print("size of datetime: {0} seconds = {1:.2f} minutes = {2:.3f} hours \n".format(len(datetime_convert), float(float(len(datetime_convert))/60), float(float(len(datetime_convert))/3600)))
+
 	(fig, ax) = plt.subplots(1, 1)
+	#fig = plt.figure(figsize=(8.0, 5.0)) # size of the figure in inches
 
 	import matplotlib.dates as mdates
 	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
@@ -178,20 +184,41 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 	plt.plot(datetime_convert, [0]*len(b_total_list), ':', color='black') # print at zeroes
 
 	from scipy import stats # trimmed mean to remove percent_trim% of both ends of the mean
-	trimmed_mean = stats.trim_mean(b_total_list, percent_mean_trimmed)
-	plt.plot(datetime_convert, [trimmed_mean]*len(b_total_list), '--', color='red') # print with mean trimmed x percent from either side
+	b_total_x_hours = np.asarray(b_total_list)
+	# 1 row is 1 second, 1 hour = 3600 rows
+	b_total_x_hours = np.asarray(b_total_list) # convert to np for split
+	split_time = change_mean_every_x_hours*60*60 # in seconds
+	print("from {1} hours in split into the total {0} hours".format(float(float(len(datetime_convert))/3600), change_mean_every_x_hours))
+	b_total_x_means = np.array_split(b_total, float(len(b_total))/float(split_time))
+	b_total_x_means = [list(x) for x in b_total_x_means]
+	print("split_time {0}, out of {1} = {2} different means (rounded to {3})".format(split_time, len(b_total), float(len(b_total))/float(split_time), len(b_total_x_means)))
 
+	trimed_mean_lst = [] # stores the mean and the time it stays that length
+	mean_to_print = []
+	for subtime in b_total_x_means:
+		mean_found = stats.trim_mean(subtime, percent_mean_trimmed)
+		mean_to_print.append(mean_found)
+		trimed_mean_lst.append([mean_found]*len(subtime))
+	print("trimmed mean: \n{0}".format(mean_to_print))
+	graph_trimmed_mean = [j for i in trimed_mean_lst for j in i] # compress parts into a single list to graph
+	#trimmed_mean = stats.trim_mean(b_total_list, percent_mean_trimmed)
+	#print("{0} == {1}".format(len(trimed_mean_lst), len([trimmed_mean]*len(b_total_list))))
+	plt.plot(datetime_convert, graph_trimmed_mean, '--', color='red') # print with mean trimmed x percent from either side
+	
 	################## Red line for regions above the cutoff 25%
-	greater_percent_cutoff = [] #~25%
-	cutoff_percent = abs(trimmed_mean * percent_cutoff) #25% (can be reverted back)
-	cutoff = trimmed_mean + cutoff_percent
-	plt.plot(datetime_convert, [cutoff]*len(b_total_list), '--', color='green') # print with mean 25% cutoff
-
-	print("trimmed mean = {0}".format(trimmed_mean))
-	print("{0}% cutoff = {1}".format(percent_cutoff*100, cutoff))
+	greater_percent_cutoff = [] # will be a x mean values of time/change_mean_every_x_hours
+	cutoff_percent_list = []
+	cuttoff_to_print = []
+	for submean in trimed_mean_lst:
+		cutoff_found_per_mean = abs(submean[0] * percent_cutoff) #25% (can be reverted back)
+		cuttoff_to_print.append(submean[0] + cutoff_found_per_mean)
+		cutoff_percent_list.append([submean[0] + cutoff_found_per_mean]*len(submean))
+	cutoff_percent_list = [j for i in cutoff_percent_list for j in i] # compress parts into a single list to graph
+	print("{0}% cutoff: \n{1}".format(percent_cutoff*100, cuttoff_to_print))
+	plt.plot(datetime_convert, cutoff_percent_list, '--', color='green') # print with mean 25% cutoff
 	
 	for event_index in range(len(b_total_list)):
-		if b_total_list[event_index] >= cutoff:
+		if b_total_list[event_index] >= cutoff_percent_list[event_index]:
 			greater_percent_cutoff.append(b_total_list[event_index])
 		else:
 			greater_percent_cutoff.append(np.nan)
@@ -201,7 +228,6 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 	time_cutoff = time_cutoff_in_minutes * 60
 	print("time cutoff = {0} minutes".format(time_cutoff_in_minutes))
 	# each row accounts for 1 second
-	print("size of datetime: {0} seconds = {1:.2f} minutes\n".format(len(datetime_convert), float(float(len(datetime_convert))/60)))
 	timer_cutoff_lst = list(greater_percent_cutoff)
 	timer_nan_groups = [timer_cutoff_lst[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(timer_cutoff_lst)) if len(timer_cutoff_lst[s]) > time_cutoff]
 	# groups of non-nan values (groups any value above the cutoff that lasts longer than the cutoff)
@@ -259,7 +285,7 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 			max_point.append(max_pt)
 	#assert no duplicates values in the code (should only be a list of max values), if not, is storing the same value in more than one place
 	if np.count_nonzero(~np.isnan(max_point)) != len(max_print_list):
-		print("\nWARNING: duplicates max peaks found, {0}!={1}".format(np.count_nonzero(~np.isnan(max_point)), len(max_print_list)))
+		print("\nLOG WARNING: duplicates max peaks found, {0}!={1}".format(np.count_nonzero(~np.isnan(max_point)), len(max_print_list)))
 	plt.scatter(datetime_convert, max_point, color='red')
 	# Make adjacent lines to peak red
 	red_adjacent = []
@@ -318,6 +344,73 @@ def plot_sub_events(print_date_values, time_cutoff, timer_nan_groups,  bx_groups
 			print("ERROR: {0} != {1}, TOTAL EVENTS PRINTED DO NOT MATCH THE GROUPS ABOVE THE CUTOFF".format(evnt_counter, len(timer_nan_groups)))
 		for i in range(len(sub_plot_times)):
 			multiplePlot(sub_plot_times[i], bx_groups[i], by_groups[i], bz_groups[i], bt_groups[i], i+1)
+			find_jsheet_derivatives(sub_plot_times[i], bx_groups[i], by_groups[i], bz_groups[i], bt_groups[i], i+1)
+
+def derivative_pair(y_pair):
+	#print("Y: {0}".format(y_pair))
+	slope = y_pair[1]-y_pair[0]#/1 # x2-x1 always 1 (1 second between pairs)
+	return slope
+
+def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
+	# produce a list of derivate for the range of points found in the event identified
+	der_bx = []
+	der_by = []
+	der_bz = []
+	datetime_pair = []
+	for i in xrange(0, len(bx), 2): # create pairs from each list
+		pair = bx[i:i+2]
+		if len(pair) > 1: # do not find the derivative of a single trailing point
+			der_bx.append(derivative_pair(pair))
+			datetime_pair.append(datetime_list[i])
+
+	for i in xrange(0, len(bx), 2): # create pairs from each list
+		pair = by[i:i+2]
+		if len(pair) > 1: # do not find the derivative of a single trailing point
+			der_by.append(derivative_pair(pair))
+
+	for i in xrange(0, len(bz), 2): # create pairs from each list
+		pair = bz[i:i+2]
+		if len(pair) > 1: # do not find the derivative of a single trailing point
+			der_bz.append(derivative_pair(pair))
+
+	#print("Bx:\n{0}".format(der_bx))
+	#print("By:\n{0}".format(der_by))
+	#print("Bz:\n{0}".format(der_bz))
+
+
+	# plot b values if they create an event
+	# share the x axis among all four graphs
+	fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True)
+	#fig = plt.figure(figsize=(8.0, 5.0)) # size of the figure in inches
+	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_pair] # convert datetime to format to use on x-axis
+	
+	import matplotlib.dates as mdates
+	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
+	ax1.xaxis.set_major_formatter(xfmt)
+	ax1.set_title('Bx')
+	ax1.plot(datetime_convert, der_bx, color='red')
+	#plt.ylabel("[nT]")
+	
+	ax2.set_title('By')
+	ax2.plot(datetime_convert, der_by, color='green')
+	
+	ax3.set_title('Bz')
+	ax3.plot(datetime_convert, der_bz, color='blue')
+	
+
+	plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+	plt.suptitle('Derivatives of Event {0}: {1} to {2}'.format(sub_title, datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
+	print("Derivatives for the event for bx, by, and bz graph saved {0}_event{1}_DER.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
+	plt.savefig('output_img/{0}_event{1}_DER.png'.format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
+	#plt.show()
+
+	print("BX: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bx[der_bx.index(max(der_bx))], datetime_list[der_bx.index(max(der_bx))],
+														  der_bx[der_bx.index(min(der_bx))], datetime_list[der_bx.index(min(der_bx))]))
+	print("BY: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_by[der_by.index(max(der_by))], datetime_list[der_by.index(max(der_by))],
+														  der_by[der_by.index(min(der_by))], datetime_list[der_by.index(min(der_by))]))
+	print("BZ: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bz[der_bz.index(max(der_bz))], datetime_list[der_bz.index(max(der_bz))],
+														  der_bz[der_bz.index(min(der_bz))], datetime_list[der_bz.index(min(der_bz))]))
+
 
 if __name__ == '__main__':
 	start_time = datetime.now()
@@ -358,7 +451,8 @@ if __name__ == '__main__':
 
 	percent_cutoff_value = .20 #%
 	percent_trimmed_from_mean = 0.45 #%
-	time_cutoff_in_minutes = 10 # minutes
+	time_cutoff_in_minutes = 8 # minutes
+	update_mean_every_x_hours = 4 # hours
 	possible_events = magEnhance(datetime_lst,
 								 b_total,
 								 b_x,
@@ -366,9 +460,10 @@ if __name__ == '__main__':
 								 b_z,
 								 percent_cutoff_value,
 								 percent_trimmed_from_mean,
-								 time_cutoff_in_minutes) # finds possible events for a given time frame
-
+								 time_cutoff_in_minutes,
+								 update_mean_every_x_hours) # finds possible events for a constants
 	print("\nGraphing ran for {0}".format(datetime.now() - start_time))
+	#plt.show()
 
 
 
