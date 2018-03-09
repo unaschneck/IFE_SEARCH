@@ -1,13 +1,12 @@
 # IFE_SEARCH
 
-Looking for Interplanetary Field Enhancements (IFEs) (Russell et al. 1985a) in STEREO, WIND, and ACE magnetometer data.
+Looking for Interplanetary Field Enhancements (IFEs) (Russell et al. 1985a) in ACE magnetometer data (GSE coordinates).
 
 
 __Selection Criteria (Lai et al. 2017):__
 1. Total Magnetic field enhancement > 25% (relative to ambient |B|)
-2. Duration > 10 minutes
+2. Duration of enhancement > 10 minutes
 3. Current sheet is present at or within the peak of |B|
-4. One of the three magnetic field component doesn't rotate during the enhancement
 
 # To Run Code
 1. Download or clone repo
@@ -47,3 +46,4 @@ size of datetime: 6
 1. Center the event in the subplots
 2. Add labels for the y axis (nT) and for clean up the time on the x axis (mark every hour)
 3. Change the y axis for the B total so that it shows the enhancement (+2 and -2 from max and min)
+4. Adapt code to take in STEREO in GSE coordinates
