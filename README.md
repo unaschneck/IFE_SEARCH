@@ -28,8 +28,6 @@ size of datetime: 14371 seconds, 239.52 minutes
 total events = 3
 average event length 22.2056 minutes
 ```
-![example_output](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/JUNE_2009_STEREO_A.png)
-
 Without events:
 ```
 trimmed mean = -0.56126
@@ -37,13 +35,9 @@ trimmed mean = -0.56126
 time cutoff = 10 minutes
 size of datetime: 6
 ```
-![example_output](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/JUNE_TEST.png)
-![example_output1](https://github.com/unaschneck/IFE_SEARCH/blob/master/output_img/stereo_event_example_1.png)\
-
 
 # To Do
 
-1. Center the event in the subplots
-2. Add labels for the y axis (nT) and for clean up the time on the x axis (mark every hour)
-3. Change the y axis for the B total so that it shows the enhancement (+2 and -2 from max and min)
-4. Adapt code to take in STEREO in GSE coordinates
+1. Add labels for the y axis (nT) and for clean up the time on the x axis (mark every hour)
+2. Change the y axis for the B total so that it shows the enhancement (+2 and -2 from max and min)
+3. Adapt code to take in STEREO in GSE coordinates
