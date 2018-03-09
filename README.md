@@ -44,8 +44,6 @@ size of datetime: 6
 
 # To Do
 
-1. Add zero line for the subplots
-2. Center the event in the subplots
-3. Add labels for the y axis (nT) and for clean up the time on the x axis 
-4. Change the y axis for the B total so that it shows the enhancement
-5. Find sudden changes in the components (aka current sheets) in the possible events
+1. Center the event in the subplots
+2. Add labels for the y axis (nT) and for clean up the time on the x axis (mark every hour)
+3. Change the y axis for the B total so that it shows the enhancement (+2 and -2 from max and min)
