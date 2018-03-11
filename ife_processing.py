@@ -80,6 +80,10 @@ def processCSVACEdata(graph_data):
 		print("LOG WARNING: Invalid data -1.00000E+31 found, converted to nan")
 	return ace_csv_data
 
+def retrieveFromExistingCSV(filename):
+	csv_data = [] # store each row as a list of list
+	return csv_data
+
 ########### Save Data as CSV
 def outputCSV(filename, data_list):
 	# save data from text as a csv (STERO)
@@ -133,31 +137,55 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 	# plot all four values if they create an event
 	# share the x axis among all four graphs
 	# four subplots sharing both x/y axes
-	fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True, sharey=True)
-	#fig = plt.figure(figsize=(8.0, 5.0)) # size of the figure in inches
+	#fig = plt.figure(figsize=(16, 16)) # graph 8x8 inches
+	fig = plt.figure()
+	fig.set_figheight(18)
+	fig.set_figwidth(16)
 	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_list] # convert datetime to format to use on x-axis
 	
 	import matplotlib.dates as mdates
 	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
+	ax1 = plt.subplot(411)
 	ax1.xaxis.set_major_formatter(xfmt)
+	plt.setp(ax1.get_xticklabels(), fontsize=6)
+	plt.plot(datetime_convert, bx, color='red')
 	ax1.set_title('Bx')
-	ax1.plot(datetime_convert, bx, color='red')
 	#plt.ylabel("[nT]")
-	
+	plt.setp(ax1.get_xticklabels(), visible=False)
+
+	ax2 = plt.subplot(412, sharex=ax1, sharey=ax1)
 	ax2.set_title('By')
 	ax2.plot(datetime_convert, by, color='green')
-	
+	plt.setp(ax2.get_xticklabels(), visible=False)
+
+	ax3 = plt.subplot(413, sharex=ax1, sharey=ax1)
 	ax3.set_title('Bz')
 	ax3.plot(datetime_convert, bz, color='blue')
-	
+	plt.setp(ax3.get_xticklabels(), visible=False)
+
+	# b_total does not share the same y axis as the others
+	ax4 = plt.subplot(414, sharex=ax1)
 	ax4.set_title('B_total')
 	ax4.plot(datetime_convert, btotal, color='black')
+	y_max = max(btotal) + 1
+	y_min = min(btotal) - 1
+	ax4.set_ylim([y_min, y_max])
 	
 	#f.subplots_adjust(hspace=0)
 	plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
-	#ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
-	#ax1.tick_params(axis='x', which='major', labelsize=3) # change size of font for x-axis
-	#plt.tight_layout() # fit x-axis title on bottom
+	plt.xticks(rotation=90)
+	#plt.gcf().autofmt_xdate() # turn x-axis on side for easy of reading
+	if sub_title is 'overall':
+		time_interval = len(datetime_convert) / 3600 # hour
+		plt.xlabel('Datetime: Hourly ({0} intervals)'.format(time_interval))
+		ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=time_interval))
+	else:
+		time_interval = len(datetime_convert) / 60 # 1 minute
+		plt.xlabel('Datetime: Mintues ({0} intervals)'.format(time_interval))
+		ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+
+	ax1.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
+	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 	plt.suptitle('Event {0}: {1} to {2}'.format(sub_title, datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
 	print("\nSub-graphs for bx, by, bz, btotal graph saved {0}_event{1}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	plt.savefig('output_img/{0}_event{1}.png'.format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
@@ -165,21 +193,19 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 
 def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_mean_trimmed, time_cutoff_in_minutes, change_mean_every_x_hours):
 	'''
-	define an ambient magnetic field magnitude over a four hour interval and compare the peak of |B| (where the derivative is zero)
+	define an ambient magnetic field magnitude over a four hour interval and compare the peak of |B| (where the Maxative is zero)
 	to the ambient. 
 	Returns true if peak value is larger than (0.25)*(|B|avg)
 	'''
 	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_lst] # convert datetime to format to use on x-axis
 	print("size of datetime: {0} seconds = {1:.2f} minutes = {2:.3f} hours \n".format(len(datetime_convert), float(float(len(datetime_convert))/60), float(float(len(datetime_convert))/3600)))
-
-	(fig, ax) = plt.subplots(1, 1)
-	#fig = plt.figure(figsize=(8.0, 5.0)) # size of the figure in inches
+	(fig, ax) = plt.subplots(1, 1, figsize=(25, 16))
 
 	import matplotlib.dates as mdates
 	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
 	ax.xaxis.set_major_formatter(xfmt)
 	plt.plot(datetime_convert, b_total_list, color='black')
-	plt.scatter(datetime_convert, b_total_list, color='black')
+	#plt.scatter(datetime_convert, b_total_list, color='black')
 
 	plt.plot(datetime_convert, [0]*len(b_total_list), ':', color='black') # print at zeroes
 
@@ -263,8 +289,8 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 
 	#plot_sub_plots at the end
 
-	plt.scatter(datetime_convert, timer_cutoff_lst, color='blue')
 	plt.plot(datetime_convert, timer_cutoff_lst, color='blue') # overlay graph with regions that are above the cutoffs
+	#plt.scatter(datetime_convert, timer_cutoff_lst, color='blue')
 	
 	################## Point for the peak among the red lines for cutoff
 	# find the max for each group of values that are above red
@@ -302,12 +328,13 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 	################## Plot axis titles and format font size
 	plt.title('Events: {0}'.format(os.path.basename(os.path.splitext(filename)[0])))
 	plt.ylabel('|B| [nT]')
-	plt.xlabel('Datetime (10 min. intervals)')
 	plt.xticks(rotation=90)
 	#plt.gcf().autofmt_xdate() # turn x-axis on side for easy of reading
-	ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
-	ax.tick_params(axis='x', which='major', labelsize=3) # change size of font for x-axis
-	plt.tight_layout() # fit x-axis title on bottom
+	time_interval = len(datetime_convert) / 3600
+	ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=time_interval))
+	plt.xlabel('Datetime: Hourly ({0} intervals)'.format(time_interval))
+	ax.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
+	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 
 	print("\nEvents graph saved {0}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0])))
 	plt.savefig('output_img/{0}.png'.format(os.path.basename(os.path.splitext(filename)[0])))
@@ -380,8 +407,8 @@ def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
 
 	# plot b values if they create an event
 	# share the x axis among all four graphs
-	fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True)
-	#fig = plt.figure(figsize=(8.0, 5.0)) # size of the figure in inches
+
+	fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True, figsize=(16, 16))
 	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_pair] # convert datetime to format to use on x-axis
 	
 	import matplotlib.dates as mdates
@@ -400,6 +427,13 @@ def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
 
 	plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
 	plt.suptitle('Derivatives of Event {0}: {1} to {2}'.format(sub_title, datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
+	plt.xticks(rotation=90)
+	time_interval = len(datetime_convert) / 60 # 1 minute
+	plt.xlabel('Datetime: Every 2 Mintues ({0} intervals)'.format(time_interval))
+	ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+	#print("time_interval = {0}".format(time_interval))
+	ax1.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
+	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 	print("Derivatives for the event for bx, by, and bz graph saved {0}_event{1}_DER.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	plt.savefig('output_img/{0}_event{1}_DER.png'.format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	#plt.show()
@@ -451,7 +485,7 @@ if __name__ == '__main__':
 
 	percent_cutoff_value = .20 #%
 	percent_trimmed_from_mean = 0.45 #%
-	time_cutoff_in_minutes = 8 # minutes
+	time_cutoff_in_minutes = 25 # minutes
 	update_mean_every_x_hours = 4 # hours
 	possible_events = magEnhance(datetime_lst,
 								 b_total,
@@ -464,134 +498,3 @@ if __name__ == '__main__':
 								 update_mean_every_x_hours) # finds possible events for a constants
 	print("\nGraphing ran for {0}".format(datetime.now() - start_time))
 	#plt.show()
-
-
-
-	'''
-	# JSHEET (BELOW)
-
-	
-	print("\nbx")
-	bx_jsheet_events = jSheet(datetime_lst, possible_events, b_x) # filter possible events for neg/pos change
-	bx_jsheet_events = [item for sublist in bx_jsheet_events for item in sublist] # flatten
-	#print(bx_jsheet_events)
-	
-	print("\nby")
-	by_jsheet_events = jSheet(datetime_lst, possible_events, b_y) # filter possible events for neg/pos change
-	by_jsheet_events = [item for sublist in by_jsheet_events for item in sublist] # flatten
-	#print(by_jsheet_events)
-
-	print("\nbz")
-	bz_jsheet_events = jSheet(datetime_lst, possible_events, b_z) # filter possible events for neg/pos change
-	bz_jsheet_events = [item for sublist in bz_jsheet_events for item in sublist] # flatten
-	#print(bz_jsheet_events)
-
-	print("\n")
-
-	# Determine where the x, y, z share timestamps during the events
-	bxy_shared = []
-	for x in bx_jsheet_events:
-		if x in by_jsheet_events:
-			bxy_shared.append(x)
-
-	byz_shared = []
-	for y in by_jsheet_events:
-		if y in bz_jsheet_events:
-			byz_shared.append(y)
-
-	bzx_shared = []
-	for z in bz_jsheet_events:
-		if z in bx_jsheet_events:
-			bzx_shared.append(z)
-	
-	timestamps_index = [] # list of lists of values in consecutive order: [[1,2,3],[7,8],[11]]
-	if bxy_shared and not byz_shared and not bzx_shared:
-		for k, g in itertools.groupby(enumerate(bxy_shared), lambda x: x[1]-x[0]):
-			consec_order = list(map(itemgetter(1), g))
-			timestamps_index.append(consec_order)
-	if byz_shared and not bzx_shared and not bxy_shared:
-		for k, g in itertools.groupby(enumerate(byz_shared), lambda x: x[1]-x[0]):
-			consec_order = list(map(itemgetter(1), g))
-			timestamps_index.append(consec_order)
-	if bzx_shared and not bxy_shared and not byz_shared:
-		for k, g in itertools.groupby(enumerate(bzx_shared), lambda x: x[1]-x[0]):
-			consec_order = list(map(itemgetter(1), g))
-			timestamps_index.append(consec_order)
-	
-	# check that bx and by are changing signs
-	# update timestamp index
-	remove_elements = [] # elements where the averages is not opposite, to be removed
-	for updated_time in timestamps_index:
-		# see if a list of value is increasing or decreasing
-		x_average = sum(list(itemgetter(*updated_time)(b_x))) / len(updated_time)
-		y_average = sum(list(itemgetter(*updated_time)(b_y))) / len(updated_time)
-		if (x_average > 0) and (y_average > 0): # if x is pos and y is pos (remove)
-			remove_elements.append(updated_time)
-		if (x_average < 0) and (y_average < 0): # if x is neg and y is neg (remove)
-			remove_elements.append(updated_time)
-
-	#print(remove_elements)
-	#print(len(timestamps_index))
-	timestamps_index = [x for x in timestamps_index if x not in remove_elements]
-	# print the start/end datetime for each event found by jsheet
-	if len(timestamps_index) > 0:
-		for event_time in timestamps_index:
-			time_span = list(itemgetter(*event_time)(datetime_lst))
-			print("Date range for events found by jsheet: '{0}' to '{1}".format(time_span[0], time_span[len(time_span)-1]))
-	counter = 0
-	for sub_graph in timestamps_index:
-		counter += 1 # increment data figure counter
-		#print(list(itemgetter(*sub_graph)(datetime_lst)))
-		multiplePlot(list(itemgetter(*sub_graph)(datetime_lst)),
-					list(itemgetter(*sub_graph)(b_x)),
-					list(itemgetter(*sub_graph)(b_y)),
-					list(itemgetter(*sub_graph)(b_z)),
-					list(itemgetter(*sub_graph)(b_total)),
-					counter)
-	print("graphing {0} sub graphs for each interval, saved to output_img".format(counter))
-	'''
-'''
-def jSheet(datetime_list, events_list, b_val):
-	#a current sheet is present for a sharp rotation of at least one of the components. 
-	#Return true if (i) at least one component of B changes from positive -> negative (or vv) within the duration of the event
-	#(ii) and the change happens within a minute
-
-	time_cutoff_in_minutes = 10
-	time_cutoff = time_cutoff_in_minutes * 60
-	print("jsheet time cutoff = {0} minutes".format(time_cutoff_in_minutes))
-	#print(events_list)
-	
-	group_nonnan_index = [x for x in range(len(events_list)) if events_list[x] is not np.nan]
-	#print("\time non nan ={0}".format(group_nonnan_index))
-
-	timestamps_index = [] # list of lists of values in consecutive order: [[1,2,3],[7,8],[11]]
-	for k, g in itertools.groupby(enumerate(group_nonnan_index), lambda x: x[1]-x[0]):
-		consec_order = list(map(itemgetter(1), g))
-		if len(consec_order) <= time_cutoff:
-			timestamps_index.append(consec_order)
-	#print(timestamps_index)
-
-	#store the events that take place in the time cutofft
-	jsheet_timecutoff_events = []
-	jsheet_index = []
-	for index in timestamps_index:
-		timespan_sublist = [b_val[i] for i in index]
-		if not all(i >= 0 for i in timespan_sublist) and not all(i <= 0 for i in timespan_sublist):
-			jsheet_index.append(index)
-			jsheet_timecutoff_events.append(timespan_sublist)
-
-	#print(jsheet_timecutoff_events)
-	#print(jsheet_index)
-	print("found jsheet events = {0}".format(len(jsheet_timecutoff_events)))
-	b_plot_jsheet = [np.nan]*len(datetime_list)
-
-	for (index, value) in zip(jsheet_index, jsheet_timecutoff_events):
-		#print(index, value)
-		for i in range(len(index)):
-			b_plot_jsheet[index[i]] = value[i]
-	#print(b_plot_jsheet)
-	#return b_plot_jsheet
-	return jsheet_index
-
-'''
-
