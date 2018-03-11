@@ -38,6 +38,4 @@ size of datetime: 6
 
 # To Do
 
-1. Add labels for the y axis (nT) and for clean up the time on the x axis (mark every hour)
-2. Change the y axis for the B total so that it shows the enhancement (+2 and -2 from max and min)
-3. Adapt code to take in STEREO in GSE coordinates
+1. Adapt code to take in STEREO in GSE coordinates
