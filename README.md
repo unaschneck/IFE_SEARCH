@@ -36,6 +36,9 @@ time cutoff = 10 minutes
 size of datetime: 6
 ```
 
+Example of Identified Event:
+![event_example](https://github.com/unaschneck/IFE_SEARCH/blob/master/example_event.png)
+
 # To Do
 
 1. Adapt code to take in STEREO in GSE coordinates
