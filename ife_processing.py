@@ -28,6 +28,43 @@ def readFile(filename):
 		file_data = [row.replace("\n" , "") for row in file_data]
 	return file_data
 
+def breakIntoSubFiles(filename):
+	sub_files = []
+	from subprocess import Popen, PIPE, call
+	p1 = Popen(["cat", "{0}".format(filename)], stdout=PIPE)
+	p2 = Popen(["wc", "-l"], stdin=p1.stdout, stdout=PIPE)
+	p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
+	line_count = int(p2.communicate()[0])
+	#print("line count = {0}\n".format(line_count))
+	#determine_plot_interval1(line_count)
+	max_line_count_before_killed = 999999
+	time_per_x_plus_hour = 2631600 # for overlap
+	counter = 1
+	if line_count > max_line_count_before_killed:
+		total_count = line_count
+		start_index = 1
+		end_index = time_per_week_plus_hour
+		base_filename = "{0}_month".format(os.path.basename(os.path.splitext(filename)[0]))
+		while(total_count > 0):
+			weekly_filename = "{0}_{1}.txt".format(base_filename, counter)
+			sub_files.append(weekly_filename)
+			#print("greater than killed, split")
+			#print("\nsed from {0} to {1}".format(start_index, end_index))
+			# create file from start/end
+			with open(weekly_filename, "w") as new_sub_file:
+				#sed -n -e '1,999999p' AC_H3_MFI_23818.txt > ace_test_long.txt
+				call(["sed", "-n", "-e", "{0},{1}p".format(start_index, end_index), filename], stdout=new_sub_file)
+				#print("New file: {0}".format(weekly_filename))
+			start_index += time_per_x_plus_hour
+			end_index += time_per_x_plus_hour + 1 # some overlap in index
+			if end_index > line_count:
+				end_index = line_count
+			total_count -= time_per_week_plus_hour
+			counter += 1
+	else:
+		sub_files.append(filename)
+	return sub_files # return the total number of files
+
 def processCSVACEdata(graph_data):
 	# store ACE data in list of list (all formats saved this way)
 	'''
@@ -60,18 +97,19 @@ def processCSVACEdata(graph_data):
 			
 			b_data = row[24:].split()
 			#print(b_data)
-			if '-1.00000E+31' == b_data[0]:
-				invalid_data_found = True
-				btotal = np.nan 
-				bx = np.nan 
-				by = np.nan
-				bz = np.nan
-			else:
-				btotal = b_data[0]
-				bx = b_data[1] 
-				by = b_data[2]
-				bz = b_data[3]
-			ace_csv_data.append([year, month, day, hour, minute, second, millisecond, btotal, bx, by, bz])
+			if b_data:
+				if '-1.00000E+31' == b_data[0]:
+					invalid_data_found = True
+					btotal = np.nan 
+					bx = np.nan 
+					by = np.nan
+					bz = np.nan
+				else:
+					btotal = b_data[0]
+					bx = b_data[1] 
+					by = b_data[2]
+					bz = b_data[3]
+				ace_csv_data.append([year, month, day, hour, minute, second, millisecond, btotal, bx, by, bz])
 		
 	if invalid_data_found: 
 		print("LOG WARNING: Invalid data -1.00000E+31 found, converted to nan")
@@ -463,6 +501,49 @@ def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
 	print("BZ: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bz[der_bz.index(max(der_bz))], datetime_list[der_bz.index(max(der_bz))],
 														  der_bz[der_bz.index(min(der_bz))], datetime_list[der_bz.index(min(der_bz))]))
 
+def determine_plot_interval(datetime_convert):
+	# determine the interval for the graph to plot
+	time_print = 'Minute'
+	time_interval = 1
+	print("datetime = {0}".format(len(datetime_convert)))
+	level_of_crowdness = 20 # per interval
+	# total seconds / seconds in x
+	total_minutes = len(datetime_convert) / 60
+	print("total_minutes = {0}".format(total_minutes))
+	
+	if total_minutes > level_of_crowdness:
+		total_hours = len(datetime_convert) / 3600
+		print("total_hours =   {0}".format(total_hours))
+		if total_hours > level_of_crowdness:
+			total_days = len(datetime_convert) / 86400
+			print("total_days =    {0}".format(total_days))
+			if total_days > level_of_crowdness:
+				total_weeks = len(datetime_convert) / 604800
+				print("total_weeks =   {0}".format(total_weeks))
+				if total_weeks > level_of_crowdness:
+					total_months = len(datetime_convert) / 2.628e+6
+					print("total_months =  {0}".format(total_months))
+					if total_months > level_of_crowdness:
+						total_years = len(datetime_convert) / 3.154e+7
+						print("total_years =   {0}".format(total_years))
+
+
+	'''
+	time_interval = len(datetime_convert) / 3600 # hour
+	time_print = "Hourly"
+	ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=time_interval))
+	if time_interval == 0: # is less than an hour long
+		time_interval = len(datetime_convert) / 60
+		ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+		time_print = "Minute"
+	plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
+	print("mag time interval = {0}".format(time_interval))
+	plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
+	'''
+
+	#print("\ntime_print = {0}".format(time_print))
+	#print("time_interval = {0}".format(time_interval))
+	return (time_print, time_interval)
 
 if __name__ == '__main__':
 	start_time = datetime.now()
@@ -476,53 +557,71 @@ if __name__ == '__main__':
 	if filename is None:
 		print("\n\tWARNING: File not given, exiting...\n")
 		exit()
+
+	# if the file is longer than a week, it will be broken apart into sub_files
+	# break into subfiles
+	total_files_to_run = breakIntoSubFiles(filename)
+	# if not broken down, this variables = 0
+	if len(total_files_to_run) > 1:
+		print("Total weeks worth of time to run = {0}".format(len(total_files_to_run)))
+	
+	if len(total_files_to_run) > 1:
+		# run each sub file indivudally 
+		for file_sub in total_files_to_run:
+			os.system('./run_each_sub_data.sh {0}'.format(file_sub))
+	else:
+		print("\nProcessing: {0}".format(filename))
+		graph_data = readFile(filename)
+		# processing for ACE data
 		
-	graph_data = readFile(filename)
-	# processing for ACE data
-	
-	output_filename = "{0}_data.csv".format(os.path.basename(os.path.splitext(filename)[0]).upper())
-	#print("{0} exists {1}".format(output_filename, os.path.isfile(output_filename)))
-	if not os.path.isfile(output_filename): # if csv doesn't already exist, generate it
-		#print("does not exist, generate")
-		csv_data = processCSVACEdata(graph_data)
+		output_filename = "{0}_data.csv".format(os.path.basename(os.path.splitext(filename)[0]).upper())
+		#print("{0} exists {1}".format(output_filename, os.path.isfile(output_filename)))
+		if not os.path.isfile(output_filename): # if csv doesn't already exist, generate it
+			#print("does not exist, generate")
+			csv_data = processCSVACEdata(graph_data)
+			outputCSV(filename, csv_data)
+		else: # use exising csv to generate graph
+			#print("does exist, retrieve existing")
+			csv_data = retrieveFromExistingCSV(output_filename)
+
+		'''STEREO DATA
+		for i in range(len(graph_data)):
+			graph_data[i] = re.sub("\s+", ",", graph_data[i].strip()) # replace all whitespace with commas in data
+			# for stereo data
+			if graph_data[i] == 'DATA:':
+				start_data = i # save the index of the start of the data (typically 102)
+		csv_data = graph_data[start_data+1:] # splice all data for just the graphable data (+1 to not include 'DATA:') 
+		csv_data = [row.split(',') for row in csv_data]
 		outputCSV(filename, csv_data)
-	else: # use exising csv to generate graph
-		#print("does exist, retrieve existing")
-		csv_data = retrieveFromExistingCSV(output_filename)
-	'''
-		STEREO DATA
-	for i in range(len(graph_data)):
-		graph_data[i] = re.sub("\s+", ",", graph_data[i].strip()) # replace all whitespace with commas in data
-		# for stereo data
-		if graph_data[i] == 'DATA:':
-			start_data = i # save the index of the start of the data (typically 102)
-	csv_data = graph_data[start_data+1:] # splice all data for just the graphable data (+1 to not include 'DATA:') 
-	csv_data = [row.split(',') for row in csv_data]
-	outputCSV(filename, csv_data)
-	'''
-	datetime_lst = datetime_convert(csv_data)
+		'''
+		datetime_lst = []
+		datetime_lst = datetime_convert(csv_data)
+		determine_plot_interval(datetime_lst) #TODO
+		
+		
+		#TODO: add x minute buffer for any event found
+		
+		b_x = [float(col[8]) for col in csv_data]
+		b_y = [float(col[9]) for col in csv_data]
+		b_z = [float(col[10]) for col in csv_data]
+		b_total = [float(col[7]) for col in csv_data]
+		
+		multiplePlot(datetime_lst, b_x, b_y, b_z, b_total, "overall")
 
-	b_x = [float(col[8]) for col in csv_data]
-	b_y = [float(col[9]) for col in csv_data]
-	b_z = [float(col[10]) for col in csv_data]
-	b_total = [float(col[7]) for col in csv_data]
-	
-	multiplePlot(datetime_lst, b_x, b_y, b_z, b_total, "overall")
-
-	percent_cutoff_value = .20 #%
-	percent_trimmed_from_mean = 0.45 #%
-	time_cutoff_in_minutes = 25 # minutes
-	update_mean_every_x_hours = .1 # hours
-	possible_events = magEnhance(datetime_lst,
-								 b_total,
-								 b_x,
-								 b_y,
-								 b_z,
-								 percent_cutoff_value,
-								 percent_trimmed_from_mean,
-								 time_cutoff_in_minutes,
-								 update_mean_every_x_hours) # finds possible events for a constants
-
+		percent_cutoff_value = .25 #%
+		percent_trimmed_from_mean = 0.45 #%
+		time_cutoff_in_minutes = 25 # minutes
+		update_mean_every_x_hours = 4 # hours
+		possible_events = magEnhance(datetime_lst,
+									 b_total,
+									 b_x,
+									 b_y,
+									 b_z,
+									 percent_cutoff_value,
+									 percent_trimmed_from_mean,
+									 time_cutoff_in_minutes,
+									 update_mean_every_x_hours) # finds possible events for a constants
+		
 	print("\nGraphing ran for {0}".format(datetime.now() - start_time))
 	#plt.show()
 
