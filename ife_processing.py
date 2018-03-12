@@ -1,4 +1,3 @@
-
 # IFE parser and csv
 import string
 import re
@@ -15,8 +14,6 @@ import csv
 ## FIRST CRITERIA: MAGNETIC FIELD ENHANCEMENT IS LARGER THAN 25% OF AMBIENT
 ## SECOND CRITERIA: EVENT LASTS LONGER THAN 10 MINUTES (measured over four hour intervals) 
 ## THIRD CRITERIA: CURENT SHEET IS PRESENT NEAR PEAK |B|
-
-
 
 ########### Pre-Processing File
 def detectFileType(filename):
@@ -80,8 +77,14 @@ def processCSVACEdata(graph_data):
 		print("LOG WARNING: Invalid data -1.00000E+31 found, converted to nan")
 	return ace_csv_data
 
-def retrieveFromExistingCSV(filename):
+def retrieveFromExistingCSV(existing_csv):
 	csv_data = [] # store each row as a list of list
+	# match format: ['2006', '04', '14', '17', '09', '01', '121', '10.2030', '1.90300', '-9.81400', '-2.04100']
+	# ([year, month, day, hour, minute, second, millisecond, btotal, bx, by, bz])
+	with open(existing_csv, 'r') as csv_file:
+		reader = csv.reader(csv_file, delimiter=',')
+		next(reader, None) # skip headers
+		csv_data = [row for row in reader]
 	return csv_data
 
 ########### Save Data as CSV
@@ -177,10 +180,17 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 	#plt.gcf().autofmt_xdate() # turn x-axis on side for easy of reading
 	if sub_title is 'overall':
 		time_interval = len(datetime_convert) / 3600 # hour
-		plt.xlabel('Datetime: Hourly ({0} intervals)'.format(time_interval))
+		time_print = "Hourly"
 		ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=time_interval))
+		if time_interval == 0: # is less than an hour long
+			time_interval = len(datetime_convert) / 60
+			ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+			time_print = "Minute"
+		print("multi hour time interval = {0}".format(time_interval))
+		plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
 	else:
 		time_interval = len(datetime_convert) / 60 # 1 minute
+		print("multi min time interval = {0}".format(time_interval))
 		plt.xlabel('Datetime: Mintues ({0} intervals)'.format(time_interval))
 		ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
 
@@ -330,9 +340,16 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 	plt.ylabel('|B| [nT]')
 	plt.xticks(rotation=90)
 	#plt.gcf().autofmt_xdate() # turn x-axis on side for easy of reading
-	time_interval = len(datetime_convert) / 3600
+	time_interval = len(datetime_convert) / 3600 # hour
+	time_print = "Hourly"
 	ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=time_interval))
-	plt.xlabel('Datetime: Hourly ({0} intervals)'.format(time_interval))
+	if time_interval == 0: # is less than an hour long
+		time_interval = len(datetime_convert) / 60
+		ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+		time_print = "Minute"
+	plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
+	print("mag time interval = {0}".format(time_interval))
+	plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
 	ax.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
 	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 
@@ -429,9 +446,10 @@ def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
 	plt.suptitle('Derivatives of Event {0}: {1} to {2}'.format(sub_title, datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
 	plt.xticks(rotation=90)
 	time_interval = len(datetime_convert) / 60 # 1 minute
+	print("dev time interval = {0}".format(time_interval))
 	plt.xlabel('Datetime: Every 2 Mintues ({0} intervals)'.format(time_interval))
 	ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
-	#print("time_interval = {0}".format(time_interval))
+	print("time interval = {0}".format(time_interval))
 	ax1.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
 	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 	print("Derivatives for the event for bx, by, and bz graph saved {0}_event{1}_DER.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
@@ -461,10 +479,18 @@ if __name__ == '__main__':
 		
 	graph_data = readFile(filename)
 	# processing for ACE data
-	csv_data = processCSVACEdata(graph_data)
-	outputCSV(filename, csv_data)
 	
-	'''	STEREO DATA
+	output_filename = "{0}_data.csv".format(os.path.basename(os.path.splitext(filename)[0]).upper())
+	#print("{0} exists {1}".format(output_filename, os.path.isfile(output_filename)))
+	if not os.path.isfile(output_filename): # if csv doesn't already exist, generate it
+		#print("does not exist, generate")
+		csv_data = processCSVACEdata(graph_data)
+		outputCSV(filename, csv_data)
+	else: # use exising csv to generate graph
+		#print("does exist, retrieve existing")
+		csv_data = retrieveFromExistingCSV(output_filename)
+	'''
+		STEREO DATA
 	for i in range(len(graph_data)):
 		graph_data[i] = re.sub("\s+", ",", graph_data[i].strip()) # replace all whitespace with commas in data
 		# for stereo data
@@ -486,7 +512,7 @@ if __name__ == '__main__':
 	percent_cutoff_value = .20 #%
 	percent_trimmed_from_mean = 0.45 #%
 	time_cutoff_in_minutes = 25 # minutes
-	update_mean_every_x_hours = 4 # hours
+	update_mean_every_x_hours = .1 # hours
 	possible_events = magEnhance(datetime_lst,
 								 b_total,
 								 b_x,
@@ -496,5 +522,7 @@ if __name__ == '__main__':
 								 percent_trimmed_from_mean,
 								 time_cutoff_in_minutes,
 								 update_mean_every_x_hours) # finds possible events for a constants
+
 	print("\nGraphing ran for {0}".format(datetime.now() - start_time))
 	#plt.show()
+
