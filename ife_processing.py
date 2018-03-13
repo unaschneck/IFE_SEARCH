@@ -38,12 +38,12 @@ def breakIntoSubFiles(filename):
 	#print("line count = {0}\n".format(line_count))
 	#determine_plot_interval1(line_count)
 	max_line_count_before_killed = 999999
-	time_per_x_plus_hour = 2631600 # for overlap
+	time_per_x_plus_hour = 26316000000 # for overlap
 	counter = 1
 	if line_count > max_line_count_before_killed:
 		total_count = line_count
 		start_index = 1
-		end_index = time_per_week_plus_hour
+		end_index = time_per_x_plus_hour
 		base_filename = "{0}_month".format(os.path.basename(os.path.splitext(filename)[0]))
 		while(total_count > 0):
 			weekly_filename = "{0}_{1}.txt".format(base_filename, counter)
@@ -59,7 +59,7 @@ def breakIntoSubFiles(filename):
 			end_index += time_per_x_plus_hour + 1 # some overlap in index
 			if end_index > line_count:
 				end_index = line_count
-			total_count -= time_per_week_plus_hour
+			total_count -= time_per_x_plus_hour
 			counter += 1
 	else:
 		sub_files.append(filename)
@@ -236,7 +236,7 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 	plt.suptitle('Event {0}: {1} to {2}'.format(sub_title, datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
 	print("\nSub-graphs for bx, by, bz, btotal graph saved {0}_event{1}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
-	plt.savefig('output_img/{0}_event{1}.png'.format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
+	plt.savefig('output_img/{0}/{1}_event{2}.png'.format(os.path.basename(os.path.splitext(filename)[0]), os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	#plt.show()
 
 def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_mean_trimmed, time_cutoff_in_minutes, change_mean_every_x_hours):
@@ -392,7 +392,8 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 
 	print("\nEvents graph saved {0}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0])))
-	plt.savefig('output_img/{0}.png'.format(os.path.basename(os.path.splitext(filename)[0])))
+	plt.savefig('output_img/{0}/{1}.png'.format(os.path.basename(os.path.splitext(filename)[0]),os.path.basename(os.path.splitext(filename)[0]), os.path.splitext(filename)[0]))
+
 	#plt.show()
 	
 	plot_sub_events(print_date_values, time_cutoff, timer_nan_groups, bx_groups, by_groups, bz_groups, bt_groups)
@@ -491,7 +492,8 @@ def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
 	ax1.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
 	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 	print("Derivatives for the event for bx, by, and bz graph saved {0}_event{1}_DER.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
-	plt.savefig('output_img/{0}_event{1}_DER.png'.format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
+	plt.savefig('output_img/{0}/{1}_event{2}_DERIVATIVE.png'.format(os.path.basename(os.path.splitext(filename)[0]), os.path.basename(os.path.splitext(filename)[0]), sub_title))
+	
 	#plt.show()
 
 	print("BX: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bx[der_bx.index(max(der_bx))], datetime_list[der_bx.index(max(der_bx))],
@@ -573,6 +575,9 @@ if __name__ == '__main__':
 		print("\nProcessing: {0}".format(filename))
 		graph_data = readFile(filename)
 		# processing for ACE data
+
+		if not os.path.exists('output_img/{0}'.format(os.path.basename(os.path.basename(os.path.splitext(filename)[0])))):
+			os.makedirs('output_img/{0}'.format(os.path.basename(os.path.basename(os.path.splitext(filename)[0]))))
 		
 		output_filename = "{0}_data.csv".format(os.path.basename(os.path.splitext(filename)[0]).upper())
 		#print("{0} exists {1}".format(output_filename, os.path.isfile(output_filename)))
@@ -606,6 +611,7 @@ if __name__ == '__main__':
 		b_z = [float(col[10]) for col in csv_data]
 		b_total = [float(col[7]) for col in csv_data]
 		
+
 		multiplePlot(datetime_lst, b_x, b_y, b_z, b_total, "overall")
 
 		percent_cutoff_value = .25 #%
