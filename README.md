@@ -41,4 +41,5 @@ Example of Identified Event:
 
 # To Do
 
-1. Adapt code to take in STEREO in GSE coordinates
+1. Expand date range (x axis) on the sub event plots (half an hour on either side) to get a sense of the ambient B field 
+2. Adapt code to take in STEREO in GSE coordinates
