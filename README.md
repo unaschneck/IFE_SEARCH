@@ -1,6 +1,6 @@
 # IFE_SEARCH
 
-Looking for Interplanetary Field Enhancements (IFEs) (Russell et al. 1985a) in ACE magnetometer data (GSE coordinates).
+Looking for Interplanetary Field Enhancements (IFEs) (Russell et al. 1985a) in ACE magnetometer data (GSE coordinates). IFEs were first identified in associated with the passage of an asteroid with the Venusian orbit and are believed to be the result of charged dust interactions with the flowing solar wind. The evolution and geoeffectiveness of IFEs is still an area of active research, so fast and objective identification of IFEs at 1 AU is important.
 
 
 __Selection Criteria (Lai et al. 2017):__
@@ -41,5 +41,4 @@ Example of Identified Event:
 
 # To Do
 
-1. Expand date range (x axis) on the sub event plots (half an hour on either side) to get a sense of the ambient B field 
-2. Adapt code to take in STEREO in GSE coordinates
+1. Adapt code to take in STEREO in GSE coordinates
