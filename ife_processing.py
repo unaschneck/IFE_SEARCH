@@ -30,6 +30,9 @@ def readFile(filename):
 
 def breakIntoSubFiles(filename):
 	sub_files = []
+	sub_files.append(filename)
+	return sub_files
+	'''
 	from subprocess import Popen, PIPE, call
 	p1 = Popen(["cat", "{0}".format(filename)], stdout=PIPE)
 	p2 = Popen(["wc", "-l"], stdin=p1.stdout, stdout=PIPE)
@@ -39,6 +42,7 @@ def breakIntoSubFiles(filename):
 	#determine_plot_interval1(line_count)
 	max_line_count_before_killed = 999999
 	time_per_x_plus_hour = 26316000000 # for overlap
+	call(["sed", "-n", "-e", "{0},{1}p".format(1, time_per_x_plus_hour), filename], stdout=new_sub_file)
 	counter = 1
 	if line_count > max_line_count_before_killed:
 		total_count = line_count
@@ -64,6 +68,7 @@ def breakIntoSubFiles(filename):
 	else:
 		sub_files.append(filename)
 	return sub_files # return the total number of files
+	'''
 
 def processCSVACEdata(graph_data):
 	# store ACE data in list of list (all formats saved this way)
@@ -174,15 +179,40 @@ def datetime_convert(csv_data):
 	return dt#[datetime.strptime(t, '%Y-%m-%d %H:%M:%S.%f') for t in dt] # convert to datetime
 
 ########### IFE IDENTIFICATION CRITERIA
-def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
+def multiplePlot(buffer_size, datetime_list, bx, by, bz, btotal, sub_title, buffer_b):
 	# plot all four values if they create an event
 	# share the x axis among all four graphs
 	# four subplots sharing both x/y axes
-	#fig = plt.figure(figsize=(16, 16)) # graph 8x8 inches
+	print("\nSub-graphs for bx, by, bz, btotal graph saved {0}_event{1}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	fig = plt.figure()
 	fig.set_figheight(18)
 	fig.set_figwidth(16)
 	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_list] # convert datetime to format to use on x-axis
+	pre_buffer_datetime = datetime_convert # save a local copy, to use a the title (even after updated with the buffer)
+	
+	if buffer_b: # is not None (None when graphing 'overall')
+		# buffer_b is a tuple: (bx_groups, by_groups, bz_groups, bt_groups, total_datetime)
+		full_bx = buffer_b[0]
+		full_by = buffer_b[1]
+		full_bz = buffer_b[2]
+		full_bt =  buffer_b[3]
+		total_time =  buffer_b[4]
+		add_buffer_to_both_sides = int(len(bx)*buffer_size)
+		print("added {0} minutes buffer to either side of the found event".format(float(add_buffer_to_both_sides)/60))
+		new_start_with_buffer = total_time.index(datetime_convert[0]) - add_buffer_to_both_sides
+		if new_start_with_buffer < 0: # either move back x or start at the beginning
+			new_start_with_buffer = 0
+		new_end_with_buffer = total_time.index(datetime_convert[len(datetime_convert)-1]) + add_buffer_to_both_sides
+		if new_end_with_buffer > len(total_time):
+			new_end_with_buffer = len(total_time)
+		#print("index: without buffer = ({0}, {1}), with buffer = ({2}, {3})".format(total_time.index(datetime_convert[0]), total_time.index(datetime_convert[len(datetime_convert)-1]), new_start_with_buffer, new_end_with_buffer))
+		
+		# NEW B VALUES WITH THE ADDED BUFFER
+		datetime_convert = total_time[new_start_with_buffer:new_end_with_buffer]
+		bx = full_bx[new_start_with_buffer:new_end_with_buffer]
+		by = full_by[new_start_with_buffer:new_end_with_buffer]
+		bz = full_bz[new_start_with_buffer:new_end_with_buffer]
+		btotal = full_bt[new_start_with_buffer:new_end_with_buffer]
 	
 	import matplotlib.dates as mdates
 	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
@@ -191,26 +221,29 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 	plt.setp(ax1.get_xticklabels(), fontsize=6)
 	plt.plot(datetime_convert, bx, color='red')
 	ax1.set_title('Bx')
-	#plt.ylabel("[nT]")
+	plt.ylabel("[nT]")
 	plt.setp(ax1.get_xticklabels(), visible=False)
 
 	ax2 = plt.subplot(412, sharex=ax1, sharey=ax1)
 	ax2.set_title('By')
 	ax2.plot(datetime_convert, by, color='green')
+	plt.ylabel("[nT]")
 	plt.setp(ax2.get_xticklabels(), visible=False)
 
 	ax3 = plt.subplot(413, sharex=ax1, sharey=ax1)
 	ax3.set_title('Bz')
 	ax3.plot(datetime_convert, bz, color='blue')
+	plt.ylabel("[nT]")
 	plt.setp(ax3.get_xticklabels(), visible=False)
 
 	# b_total does not share the same y axis as the others
 	ax4 = plt.subplot(414, sharex=ax1)
 	ax4.set_title('B_total')
 	ax4.plot(datetime_convert, btotal, color='black')
-	y_max = max(btotal) + 1
-	y_min = min(btotal) - 1
+	y_max = np.nanmax(np.asarray(btotal)[np.asarray(btotal) != -np.nan]) + 1 # ignore nan when finding min/max
+	y_min = np.nanmin(np.asarray(btotal)[np.asarray(btotal) != -np.nan]) - 1 # ignore nan when finding min/max
 	ax4.set_ylim([y_min, y_max])
+	plt.ylabel("[nT]")
 	
 	#f.subplots_adjust(hspace=0)
 	plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
@@ -224,22 +257,21 @@ def multiplePlot(datetime_list, bx, by, bz, btotal, sub_title):
 			time_interval = len(datetime_convert) / 60
 			ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
 			time_print = "Minute"
-		print("multi hour time interval = {0}".format(time_interval))
+		print("(x-axis) multi HOUR time interval = {0}".format(time_interval))
 		plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
 	else:
 		time_interval = len(datetime_convert) / 60 # 1 minute
-		print("multi min time interval = {0}".format(time_interval))
+		print("(x-axis) multi MINUTE time interval = {0}".format(time_interval))
 		plt.xlabel('Datetime: Mintues ({0} intervals)'.format(time_interval))
 		ax1.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
 
 	ax1.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
 	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
-	plt.suptitle('Event {0}: {1} to {2}'.format(sub_title, datetime_convert[0], datetime_convert[len(datetime_convert)-1]))
-	print("\nSub-graphs for bx, by, bz, btotal graph saved {0}_event{1}.png, saved to output_img".format(os.path.basename(os.path.splitext(filename)[0]), sub_title))
+	plt.suptitle('Event {0}: {1} to {2}'.format(sub_title, pre_buffer_datetime[0], pre_buffer_datetime[len(pre_buffer_datetime)-1]))
 	plt.savefig('output_img/{0}/{1}_event{2}.png'.format(os.path.basename(os.path.splitext(filename)[0]), os.path.basename(os.path.splitext(filename)[0]), sub_title))
 	#plt.show()
 
-def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_mean_trimmed, time_cutoff_in_minutes, change_mean_every_x_hours):
+def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_mean_trimmed, time_cutoff_in_minutes, change_mean_every_x_hours, buffer_size):
 	'''
 	define an ambient magnetic field magnitude over a four hour interval and compare the peak of |B| (where the Maxative is zero)
 	to the ambient. 
@@ -247,6 +279,8 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 	'''
 	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_lst] # convert datetime to format to use on x-axis
 	print("size of datetime: {0} seconds = {1:.2f} minutes = {2:.3f} hours \n".format(len(datetime_convert), float(float(len(datetime_convert))/60), float(float(len(datetime_convert))/3600)))
+	# original values: (bx_groups, by_groups, bz_groups, bt_groups, total_datetime) -> for plotting sub events (buffer)
+	original_values = (list(bx), list(by), list(bz), list(b_total_list), list(datetime_convert)) # create a static version of the original values
 	(fig, ax) = plt.subplots(1, 1, figsize=(25, 16))
 
 	import matplotlib.dates as mdates
@@ -395,11 +429,11 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 	plt.savefig('output_img/{0}/{1}.png'.format(os.path.basename(os.path.splitext(filename)[0]),os.path.basename(os.path.splitext(filename)[0]), os.path.splitext(filename)[0]))
 
 	#plt.show()
-	
-	plot_sub_events(print_date_values, time_cutoff, timer_nan_groups, bx_groups, by_groups, bz_groups, bt_groups)
+	# original values: (bx_groups, by_groups, bz_groups, bt_groups, total_datetime)
+	plot_sub_events(print_date_values, time_cutoff, timer_nan_groups, bx_groups, by_groups, bz_groups, bt_groups, original_values, buffer_size)
 	return timer_cutoff_lst
 
-def plot_sub_events(print_date_values, time_cutoff, timer_nan_groups,  bx_groups, by_groups, bz_groups, bt_groups):
+def plot_sub_events(print_date_values, time_cutoff, timer_nan_groups,  bx_groups, by_groups, bz_groups, bt_groups, orignal_total_values, buffer_size):
 	print_dates = []
 	append_date = []
 	for i in print_date_values:
@@ -410,41 +444,68 @@ def plot_sub_events(print_date_values, time_cutoff, timer_nan_groups,  bx_groups
 				print_dates.append(append_date)
 				append_date = []
 	average_event = 0
-	evnt_counter = 0
+	event_counter = 0
 	sub_plot_times = []
 	for print_dates_all_ranges in print_dates:
 		if len(print_dates_all_ranges) > time_cutoff: # one minute
-			evnt_counter += 1
+			event_counter += 1
 			average_event += len(print_dates_all_ranges)
 			sub_plot_times.append(print_dates_all_ranges)
 			print("Possible event from '{0}' to '{1}', for {2} seconds or {3:.4f} minutes".format(print_dates_all_ranges[0], print_dates_all_ranges[-1], len(print_dates_all_ranges), float(len(print_dates_all_ranges))/60.0))
 
-	if evnt_counter > 0:
-		print("\nFound {0} events with a {1} minutes cutoff".format(evnt_counter, time_cutoff/60))
-		print("average possible event length {0:.4f} minutes\n".format((float(average_event) / evnt_counter/60)))
+	if event_counter > 0:
+		print("\nFound {0} events with a {1} minutes cutoff".format(event_counter, time_cutoff/60))
+		print("average possible event length {0:.4f} minutes\n".format((float(average_event) / event_counter/60)))
 		## if event found, print log data for time span
-		if len(timer_nan_groups) != evnt_counter:
-			print("ERROR: {0} != {1}, TOTAL EVENTS PRINTED DO NOT MATCH THE GROUPS ABOVE THE CUTOFF".format(evnt_counter, len(timer_nan_groups)))
+		if len(timer_nan_groups) != event_counter:
+			print("ERROR: {0} != {1}, TOTAL EVENTS PRINTED DO NOT MATCH THE GROUPS ABOVE THE CUTOFF".format(event_counter, len(timer_nan_groups)))
 		for i in range(len(sub_plot_times)):
-			multiplePlot(sub_plot_times[i], bx_groups[i], by_groups[i], bz_groups[i], bt_groups[i], i+1)
-			find_jsheet_derivatives(sub_plot_times[i], bx_groups[i], by_groups[i], bz_groups[i], bt_groups[i], i+1)
+			multiplePlot(buffer_size, sub_plot_times[i], bx_groups[i], by_groups[i], bz_groups[i], bt_groups[i], i+1, orignal_total_values)
+			find_jsheet_derivatives(buffer_size, sub_plot_times[i], bx_groups[i], by_groups[i], bz_groups[i], bt_groups[i], i+1, orignal_total_values)
 
 def derivative_pair(y_pair):
 	#print("Y: {0}".format(y_pair))
 	slope = y_pair[1]-y_pair[0]#/1 # x2-x1 always 1 (1 second between pairs)
 	return slope
 
-def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
+def find_jsheet_derivatives(buffer_size, datetime_list, bx, by, bz, btotal, sub_title, buffer_b):
 	# produce a list of derivate for the range of points found in the event identified
 	der_bx = []
 	der_by = []
 	der_bz = []
 	datetime_pair = []
+	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_list] # convert datetime to format to use on x-axis
+
+	if buffer_b: # is not None (None when graphing 'overall')
+		# buffer_b is a tuple: (bx_groups, by_groups, bz_groups, bt_groups, total_datetime)
+		full_bx = buffer_b[0]
+		full_by = buffer_b[1]
+		full_bz = buffer_b[2]
+		full_bt =  buffer_b[3]
+		total_time =  buffer_b[4]
+		add_buffer_to_both_sides = int(len(bx)*buffer_size)
+		print("added {0} minutes buffer to either side of the found event".format(float(add_buffer_to_both_sides)/60))
+		new_start_with_buffer = total_time.index(datetime_convert[0]) - add_buffer_to_both_sides
+		if new_start_with_buffer < 0: # either move back x or start at the beginning
+			new_start_with_buffer = 0
+		new_end_with_buffer = total_time.index(datetime_convert[len(datetime_convert)-1]) + add_buffer_to_both_sides
+		if new_end_with_buffer > len(total_time):
+			new_end_with_buffer = len(total_time)
+		#print("index: without buffer = ({0}, {1}), with buffer = ({2}, {3})".format(total_time.index(datetime_convert[0]), total_time.index(datetime_convert[len(datetime_convert)-1]), new_start_with_buffer, new_end_with_buffer))
+		
+		# NEW B VALUES WITH THE ADDED BUFFER
+		datetime_convert = total_time[new_start_with_buffer:new_end_with_buffer]
+		bx = full_bx[new_start_with_buffer:new_end_with_buffer]
+		by = full_by[new_start_with_buffer:new_end_with_buffer]
+		bz = full_bz[new_start_with_buffer:new_end_with_buffer]
+		#btotal = full_bt[new_start_with_buffer:new_end_with_buffer]
+
+
 	for i in xrange(0, len(bx), 2): # create pairs from each list
 		pair = bx[i:i+2]
 		if len(pair) > 1: # do not find the derivative of a single trailing point
 			der_bx.append(derivative_pair(pair))
-			datetime_pair.append(datetime_list[i])
+			datetime_pair.append(datetime_convert[i])
 
 	for i in xrange(0, len(bx), 2): # create pairs from each list
 		pair = by[i:i+2]
@@ -460,25 +521,26 @@ def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
 	#print("By:\n{0}".format(der_by))
 	#print("Bz:\n{0}".format(der_bz))
 
-
 	# plot b values if they create an event
 	# share the x axis among all four graphs
 
+	print("bx {0}, by {1}, bz {2}, date {3}\n".format(len(der_bx), len(der_by), len(der_bz), len(datetime_pair)))
 	fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=True, figsize=(16, 16))
-	datetime_convert = [datetime.strptime(dt, '%Y-%m-%d %H:%M:%S.%f') for dt in datetime_pair] # convert datetime to format to use on x-axis
 	
 	import matplotlib.dates as mdates
 	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
 	ax1.xaxis.set_major_formatter(xfmt)
 	ax1.set_title('Bx')
-	ax1.plot(datetime_convert, der_bx, color='red')
-	#plt.ylabel("[nT]")
+	ax1.set_ylabel("[nT]")
+	ax1.plot(datetime_pair, der_bx, color='red')
 	
 	ax2.set_title('By')
-	ax2.plot(datetime_convert, der_by, color='green')
+	ax2.set_ylabel("[nT]")
+	ax2.plot(datetime_pair, der_by, color='green')
 	
 	ax3.set_title('Bz')
-	ax3.plot(datetime_convert, der_bz, color='blue')
+	ax3.set_ylabel("[nT]")
+	ax3.plot(datetime_pair, der_bz, color='blue')
 	
 
 	plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
@@ -496,12 +558,22 @@ def find_jsheet_derivatives(datetime_list, bx, by, bz, btotal, sub_title):
 	
 	#plt.show()
 
-	print("BX: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bx[der_bx.index(max(der_bx))], datetime_list[der_bx.index(max(der_bx))],
-														  der_bx[der_bx.index(min(der_bx))], datetime_list[der_bx.index(min(der_bx))]))
-	print("BY: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_by[der_by.index(max(der_by))], datetime_list[der_by.index(max(der_by))],
-														  der_by[der_by.index(min(der_by))], datetime_list[der_by.index(min(der_by))]))
-	print("BZ: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bz[der_bz.index(max(der_bz))], datetime_list[der_bz.index(max(der_bz))],
-														  der_bz[der_bz.index(min(der_bz))], datetime_list[der_bz.index(min(der_bz))]))
+	# find min/max and ignore nan values
+	#np.nanmax(np.asarray(btotal)[np.asarray(btotal) != -np.nan]) 
+	der_bx_max = np.nanmax(np.asarray(der_bx)[np.asarray(der_bx) != -np.nan]) 
+	der_by_max = np.nanmax(np.asarray(der_by)[np.asarray(der_by) != -np.nan]) 
+	der_bz_max = np.nanmax(np.asarray(der_bz)[np.asarray(der_bz) != -np.nan]) 
+
+	der_bx_min = np.nanmin(np.asarray(der_bx)[np.asarray(der_bx) != -np.nan]) 
+	der_by_min = np.nanmin(np.asarray(der_by)[np.asarray(der_by) != -np.nan]) 
+	der_bz_min = np.nanmin(np.asarray(der_bz)[np.asarray(der_bz) != -np.nan]) 
+
+	print("BX: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bx[der_bx.index(der_bx_max)], datetime_convert[der_bx.index(der_bx_max)],
+														  der_bx[der_bx.index(der_bx_min)], datetime_convert[der_bx.index(der_bx_min)]))
+	print("BY: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_by[der_by.index(der_by_max)], datetime_list[der_by.index(der_by_max)],
+														  der_by[der_by.index(der_by_min)], datetime_convert[der_by.index(der_by_min)]))
+	print("BZ: \nMax: {0} at {1}\nMin: {2} at {3}".format(der_bz[der_bz.index(der_bz_max)], datetime_convert[der_bz.index(der_bz_max)],
+														  der_bz[der_bz.index(der_bz_min)], datetime_convert[der_bz.index(der_bz_min)]))
 
 def determine_plot_interval(datetime_convert):
 	# determine the interval for the graph to plot
@@ -564,6 +636,7 @@ if __name__ == '__main__':
 	# break into subfiles
 	total_files_to_run = breakIntoSubFiles(filename)
 	# if not broken down, this variables = 0
+	print("Total time to run = {0}".format(total_files_to_run))
 	if len(total_files_to_run) > 1:
 		print("Total weeks worth of time to run = {0}".format(len(total_files_to_run)))
 	
@@ -602,22 +675,23 @@ if __name__ == '__main__':
 		datetime_lst = []
 		datetime_lst = datetime_convert(csv_data)
 		determine_plot_interval(datetime_lst) #TODO
-		
-		
-		#TODO: add x minute buffer for any event found
-		
+
 		b_x = [float(col[8]) for col in csv_data]
 		b_y = [float(col[9]) for col in csv_data]
 		b_z = [float(col[10]) for col in csv_data]
 		b_total = [float(col[7]) for col in csv_data]
-		
 
-		multiplePlot(datetime_lst, b_x, b_y, b_z, b_total, "overall")
-
-		percent_cutoff_value = .25 #%
+		# values subject to change
+		percent_cutoff_value = .20 #%
 		percent_trimmed_from_mean = 0.45 #%
 		time_cutoff_in_minutes = 25 # minutes
 		update_mean_every_x_hours = 4 # hours
+		buffer_size = .30 #% add x seconds around any event found as a buffer
+
+		# plot total event split into parts
+		multiplePlot(buffer_size, datetime_lst, b_x, b_y, b_z, b_total, "overall", None)
+
+		# find possible events
 		possible_events = magEnhance(datetime_lst,
 									 b_total,
 									 b_x,
@@ -626,7 +700,8 @@ if __name__ == '__main__':
 									 percent_cutoff_value,
 									 percent_trimmed_from_mean,
 									 time_cutoff_in_minutes,
-									 update_mean_every_x_hours) # finds possible events for a constants
+									 update_mean_every_x_hours,
+									 buffer_size) # finds possible events for a given set of constants 
 		
 	print("\nGraphing ran for {0}".format(datetime.now() - start_time))
 	#plt.show()
