@@ -636,7 +636,7 @@ if __name__ == '__main__':
 	# break into subfiles
 	total_files_to_run = breakIntoSubFiles(filename)
 	# if not broken down, this variables = 0
-	print("Total time to run = {0}".format(total_files_to_run))
+	#print("Total time to run = {0}".format(total_files_to_run))
 	if len(total_files_to_run) > 1:
 		print("Total weeks worth of time to run = {0}".format(len(total_files_to_run)))
 	
@@ -682,9 +682,9 @@ if __name__ == '__main__':
 		b_total = [float(col[7]) for col in csv_data]
 
 		# values subject to change
-		percent_cutoff_value = .20 #%
+		percent_cutoff_value = .25 #%
 		percent_trimmed_from_mean = 0.45 #%
-		time_cutoff_in_minutes = 25 # minutes
+		time_cutoff_in_minutes = 30 # minutes
 		update_mean_every_x_hours = 4 # hours
 		buffer_size = .30 #% add x seconds around any event found as a buffer
 
