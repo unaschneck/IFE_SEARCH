@@ -24,9 +24,9 @@ def readFile(filename):
 	# read in file
 	with open(filename, "r") as given_file:
 		file_data = given_file.readlines()
-		file_data = [row.replace("\r" , "") for row in file_data]
+		file_data = [row.replace("\r" , "") for row in file_data] # replace newline character with empty space
 		file_data = [row.replace("\n" , "") for row in file_data]
-	return file_data
+	return file_data #returns file without newline characters
 
 def breakIntoSubFiles(filename):
 	sub_files = []
@@ -78,7 +78,7 @@ def processCSVACEdata(graph_data):
 	['2009', '006', '08', '23', '59', '29', '000', '2.1987', '4.2269', '-1.0491', '4.8787'], 
 	['2009', '006', '08', '23', '59', '30', '000', '2.1729', '4.1750', '-1.0475', '4.8217']]
 	'''
-	start_data = 0
+	start_data = 0 # line the data starts on
 	for i in range(len(graph_data)):
 		graph_data[i] = re.sub("\s+", ",", graph_data[i].strip())
 		if graph_data[i][0] != "#": # find where the commented out region ends (around 58)
@@ -100,7 +100,7 @@ def processCSVACEdata(graph_data):
 			second = row[17:19]
 			millisecond = row[20:23]
 			
-			b_data = row[24:].split()
+			b_data = row[24:].split()  # magnetic field data
 			#print(b_data)
 			if b_data:
 				if '-1.00000E+31' == b_data[0]:
@@ -118,7 +118,7 @@ def processCSVACEdata(graph_data):
 		
 	if invalid_data_found: 
 		print("LOG WARNING: Invalid data -1.00000E+31 found, converted to nan")
-	return ace_csv_data
+	return ace_csv_data # returns list of list of data
 
 def retrieveFromExistingCSV(existing_csv):
 	csv_data = [] # store each row as a list of list
@@ -132,7 +132,7 @@ def retrieveFromExistingCSV(existing_csv):
 
 ########### Save Data as CSV
 def outputCSV(filename, data_list):
-	# save data from text as a csv (STERO)
+	# save data from text as a csv 
 	given_file = os.path.basename(os.path.splitext(filename)[0]) # return only the filename and not the extension
 	output_filename = "{0}_data.csv".format(given_file.upper())
 	with open(output_filename, 'w+') as txt_data:
@@ -169,12 +169,12 @@ def datetime_convert(csv_data):
 	dt = [] # datetime: '2009-6-8 23:59:27.0'
 	for i in range(len(csv_data)):
 		dt.append("{0}-{1}-{2} {3}:{4}:{5}.{6}".format(datetime_year[i],
-																datetime_month[i],
-																datetime_day[i],
-																datetime_hour[i],
-																datetime_minute[i],
-																datetime_second[i],
-											 					datetime_millisecond[i]))
+								datetime_month[i],
+								datetime_day[i],
+								datetime_hour[i],
+								datetime_minute[i],
+								datetime_second[i],
+								datetime_millisecond[i]))
 	print("Date range of data: '{0}' to '{1}'\n".format(dt[0], dt[len(dt)-1]))
 	return dt#[datetime.strptime(t, '%Y-%m-%d %H:%M:%S.%f') for t in dt] # convert to datetime
 
@@ -285,14 +285,14 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 
 	import matplotlib.dates as mdates
 	xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S.%f')
-	ax.xaxis.set_major_formatter(xfmt)
+	ax.xaxis.set_major_formatter(xfmt) # feed in datetimes to x axis
 	plt.plot(datetime_convert, b_total_list, color='black')
 	#plt.scatter(datetime_convert, b_total_list, color='black')
 
 	plt.plot(datetime_convert, [0]*len(b_total_list), ':', color='black') # print at zeroes
 
 	from scipy import stats # trimmed mean to remove percent_trim% of both ends of the mean
-	b_total_x_hours = np.asarray(b_total_list)
+	b_total_x_hours = np.asarray(b_total_list) # for finding the ambient magnetic field
 	# 1 row is 1 second, 1 hour = 3600 rows
 	b_total_x_hours = np.asarray(b_total_list) # convert to np for split
 	split_time = change_mean_every_x_hours*60*60 # in seconds
@@ -421,7 +421,7 @@ def magEnhance(datetime_list, b_total_list, bx, by, bz, percent_cutoff, percent_
 		time_print = "Minute"
 	plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
 	print("mag time interval = {0}".format(time_interval))
-	plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
+	#plt.xlabel('Datetime: {0} ({1} intervals)'.format(time_print, time_interval))
 	ax.tick_params(axis='x', which='major', labelsize=7) # change size of font for x-axis
 	plt.tight_layout(rect=[0, 0, 1, 0.97]) # fit x-axis/y-axi/title around the graph (left, bottom, right, top)
 
@@ -469,7 +469,7 @@ def derivative_pair(y_pair):
 	return slope
 
 def find_jsheet_derivatives(buffer_size, datetime_list, bx, by, bz, btotal, sub_title, buffer_b):
-	# produce a list of derivate for the range of points found in the event identified
+	# produce a list of derivative for the range of points found in the event identified
 	der_bx = []
 	der_by = []
 	der_bz = []
@@ -501,7 +501,7 @@ def find_jsheet_derivatives(buffer_size, datetime_list, bx, by, bz, btotal, sub_
 		#btotal = full_bt[new_start_with_buffer:new_end_with_buffer]
 
 
-	for i in xrange(0, len(bx), 2): # create pairs from each list
+	for i in xrange(0, len(by), 2): # create pairs from each list
 		pair = bx[i:i+2]
 		if len(pair) > 1: # do not find the derivative of a single trailing point
 			der_bx.append(derivative_pair(pair))
@@ -620,15 +620,15 @@ def determine_plot_interval(datetime_convert):
 	return (time_print, time_interval)
 
 if __name__ == '__main__':
-	start_time = datetime.now()
+	start_time = datetime.now() #starts a timer for run (~3-5 minutes per month)
 
 	import argparse
-	parser = argparse.ArgumentParser(description="flag format given as: -F <filename>")
+	parser = argparse.ArgumentParser(description="flag format given as: -F <filename>") # ex. python ife_processing.py -F ACE_WITH_AN_EVENT.txt
 	parser.add_argument('-F', '-filename', help="filename from data")
 	args = parser.parse_args()
 
-	filename = args.F
-	if filename is None:
+	filename = args.F #stores argument as filename
+	if filename is None: # if you run script without a file, will give you a warning and not run
 		print("\n\tWARNING: File not given, exiting...\n")
 		exit()
 
@@ -643,16 +643,16 @@ if __name__ == '__main__':
 	if len(total_files_to_run) > 1:
 		# run each sub file indivudally 
 		for file_sub in total_files_to_run:
-			os.system('./run_each_sub_data.sh {0}'.format(file_sub))
+			os.system('./run_each_sub_data.sh {0}'.format(file_sub)) #runs sub-files recursively
 	else:
-		print("\nProcessing: {0}".format(filename))
-		graph_data = readFile(filename)
+		print("\nProcessing: {0}".format(filename)) 
+		graph_data = readFile(filename) 
 		# processing for ACE data
-
+		# make new directory
 		if not os.path.exists('output_img/{0}'.format(os.path.basename(os.path.basename(os.path.splitext(filename)[0])))):
 			os.makedirs('output_img/{0}'.format(os.path.basename(os.path.basename(os.path.splitext(filename)[0]))))
 		
-		output_filename = "{0}_data.csv".format(os.path.basename(os.path.splitext(filename)[0]).upper())
+		output_filename = "{0}_data.csv".format(os.path.basename(os.path.splitext(filename)[0]).upper()) # stores data
 		#print("{0} exists {1}".format(output_filename, os.path.isfile(output_filename)))
 		if not os.path.isfile(output_filename): # if csv doesn't already exist, generate it
 			#print("does not exist, generate")
