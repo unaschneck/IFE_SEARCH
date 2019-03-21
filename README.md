@@ -63,13 +63,13 @@ mag time interval = 42
 ```
 _Generates event overview graph well as the red/green line data for mean and trimmed mean. Possible events in blue, confirmed events will be checked from the events in blue to see if they last long enough to be considered_
 
-_(Important Note: Although the 'update-mean-every-x-hours could be set to change within the graph, ACE-WITH-AN-EVENT is a small dataset so the mean/trimmed mean are set to the max hours in the data set to avoid missing smaller events so it won't change in this graph)_
+_(Important Note: Although the 'update-mean-every-x-hours could be set to change within the graph, ACE-WITH-AN-EVENT is a small dataset so the mean/trimmed mean are set to the max hours in the data set to avoid missing smaller events so it won't change in this graph. This change is typically done to prevent the x-axis from becoming crowded like is visible in this example)_
 
 ![ACE_WITH_AN_EVENT_event](output_img/ACE_WITH_AN_EVENT/ACE_WITH_AN_EVENT.png)
 ```
 Events graph saved ACE_WITH_AN_EVENT.png, saved to output_img
 ```
-_Found events with range of times, possible events are checked against given range of values to see if they are above the trimmed mean and last for x amount of time_
+_Found events with range of times, possible events are checked against given range of values to see if they are above the trimmed mean and then checked to see if they last for x amount of time_
 ```
 Possible event from '2001-4-4 14:51:41.558' to '2001-4-4 19:8:33.539', for 15413 seconds or 256.8833 minutes
 Possible event from '2001-4-5 1:18:44.501' to '2001-4-5 2:42:1.494', for 4998 seconds or 83.3000 minutes
@@ -148,10 +148,6 @@ trimmed mean = -0.56126
 time cutoff = 10 minutes
 size of datetime: 6
 ```
-
-Example of Identified Event:
-![event_example](https://github.com/unaschneck/IFE_SEARCH/blob/master/example_event.png)
-
 # To Do
 
 1. Adapt code to take in STEREO in GSE coordinates
