@@ -687,6 +687,8 @@ if __name__ == '__main__':
 		buffer_size = .30 #% add x seconds around any event found as a buffer
 
 		time_print, time_interval = determine_plot_interval(datetime_lst)
+		
+		# edge case check to make the mean does not change for datasets that are too small
 		if time_print == "Minute": # data is too small to run for x hours
 			update_mean_every_x_hours = float(len(datetime_lst))/3600
 			# updated mean set to the max hours in the data set
